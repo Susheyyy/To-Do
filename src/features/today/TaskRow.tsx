@@ -2,6 +2,7 @@ import { FormEvent, useState } from "react";
 import { format, parseISO } from "date-fns";
 
 import { Icon } from "../../components/Icon";
+import { tagColor } from "../../lib/projectColors";
 import { formatTime } from "../../lib/time";
 import { useSettings } from "../../stores/settings.store";
 import { toInput, useTasks } from "../../stores/tasks.store";
@@ -82,7 +83,7 @@ export function TaskRow({ task }: { task: Task }) {
               </span>
             )}
             {task.tags.map((tag) => (
-              <span key={tag} className="meta-tag">
+              <span key={tag} className="meta-tag" style={{ color: tagColor(tag) }}>
                 <Icon name="tag" size={12} />
                 <span>{tag}</span>
               </span>

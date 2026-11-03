@@ -1,4 +1,5 @@
 import { createContext, ReactNode, useContext, useEffect, useState } from "react";
+import { priorityColor } from "../lib/projectColors";
 import { defaultThemeId, Theme, ThemeId, themes } from "../styles/themes";
 
 interface ThemeContextValue {
@@ -32,6 +33,10 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.style.setProperty("--color-accent", theme.colors.accent);
         root.style.setProperty("--color-accentText", theme.colors.accentText);
         root.style.setProperty("--color-border", theme.colors.border);
+        root.style.setProperty("--color-p1", priorityColor(theme.id, "high"));
+        root.style.setProperty("--color-p2", priorityColor(theme.id, "medium"));
+        root.style.setProperty("--color-p3", priorityColor(theme.id, "low"));
+        root.style.setProperty("--color-p4", priorityColor(theme.id, "none"));
         root.style.setProperty("--font-body", theme.font);
         document.body.dataset.theme = theme.id;
         localStorage.setItem(THEME_KEY, theme.id);

@@ -23,17 +23,40 @@ export function nextProjectSlot(existingCount: number): string {
   return String(existingCount % PROJECT_SLOTS);
 }
 
-export const TAG_COLORS: Record<string, string> = {
-  red: "#e0556e",
-  orange: "#f08a4b",
-  amber: "#f2b84b",
-  green: "#4caf7a",
-  teal: "#2ec4b6",
-  blue: "#3b82f6",
-  indigo: "#6366f1",
-  purple: "#a855f7",
-  pink: "#ec4899",
-  brown: "#a0785a",
-  grey: "#7b8794",
-  charcoal: "#1f2937",
-};
+export const TAG_COLORS_LIST = [
+  "#e0556e",
+  "#f08a4b",
+  "#f2b84b",
+  "#4caf7a",
+  "#2ec4b6",
+  "#3b82f6",
+  "#6366f1",
+  "#a855f7",
+  "#ec4899",
+  "#a0785a",
+  "#7b8794",
+  "#1f2937",
+];
+
+export function tagColor(name: string): string {
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) >>> 0;
+  }
+  return TAG_COLORS_LIST[hash % TAG_COLORS_LIST.length];
+}
+
+export function priorityColor(themeId: ThemeId, priority: "high" | "medium" | "low" | "none"): string {
+  const shades = PALETTES[themeId] || PALETTES.kawaii;
+  switch (priority) {
+    case "high":
+      return shades[0];
+    case "medium":
+      return shades[1];
+    case "low":
+      return shades[2];
+    case "none":
+    default:
+      return "var(--color-muted)";
+  }
+}

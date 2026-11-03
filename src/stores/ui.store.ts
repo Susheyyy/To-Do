@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import type { Priority } from "../types/models";
 
-export type ListId = "inbox" | "today" | "upcoming" | "search" | "filters";
+export type ListId = "inbox" | "today" | "upcoming" | "filters";
 export type ViewId = ListId | "settings" | `project:${string}` | `tag:${string}`;
 export type Layout = "list" | "board" | "calendar";
 export type SortKey = "manual" | "priority" | "due" | "name";
@@ -20,6 +20,9 @@ interface UiState {
   setFilterPriority: (p: Priority | "all") => void;
   filterTag: string | "all";
   setFilterTag: (t: string | "all") => void;
+  searchOpen: boolean;
+  openSearch: () => void;
+  closeSearch: () => void;
   searchQuery: string;
   setSearchQuery: (q: string) => void;
   quickAddOpen: boolean;
@@ -43,6 +46,9 @@ export const useUi = create<UiState>((set) => ({
   setFilterPriority: (filterPriority) => set({ filterPriority }),
   filterTag: "all",
   setFilterTag: (filterTag) => set({ filterTag }),
+  searchOpen: false,
+  openSearch: () => set({ searchOpen: true }),
+  closeSearch: () => set({ searchOpen: false }),
   searchQuery: "",
   setSearchQuery: (searchQuery) => set({ searchQuery }),
   quickAddOpen: false,

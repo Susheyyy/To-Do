@@ -7,7 +7,7 @@ import { ListId, useUi } from "../stores/ui.store";
 import { Icon } from "./Icon";
 import { Mascot } from "./Mascot";
 
-const NAV: { id: ListId; label: string; icon: "search" | "inbox" | "sun" | "upcoming" | "filter" }[] = [
+const NAV: { id: ListId | "search"; label: string; icon: "search" | "inbox" | "sun" | "upcoming" | "filter" }[] = [
   { id: "search", label: "Search", icon: "search" },
   { id: "inbox", label: "Inbox", icon: "inbox" },
   { id: "today", label: "Today", icon: "sun" },
@@ -20,6 +20,7 @@ export function Sidebar() {
   const view = useUi((s) => s.view);
   const setView = useUi((s) => s.setView);
   const openQuickAdd = useUi((s) => s.openQuickAdd);
+  const openSearch = useUi((s) => s.openSearch);
   const open = useTasks((s) => s.open);
   const today = useTasks((s) => s.today);
   const overdue = useTasks((s) => s.overdue);
@@ -29,7 +30,7 @@ export function Sidebar() {
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
 
-  const counts: Record<ListId, number> = {
+  const counts: Record<string, number> = {
     search: 0,
     inbox: open.filter((t) => !t.dueDate && !t.projectId).length,
     today: overdue.length + today.length,
@@ -81,7 +82,13 @@ export function Sidebar() {
           <button
             key={item.id}
             className={`nav-item ${view === item.id ? "active" : ""}`}
-            onClick={() => setView(item.id)}
+            onClick={() => {
+              if (item.id === "search") {
+                openSearch();
+              } else {
+                setView(item.id);
+              }
+            }}
           >
             <Icon name={item.icon} size={17} />
             <span className="nav-label">{item.label}</span>
@@ -91,11 +98,8 @@ export function Sidebar() {
       </nav>
 
       <div className="projects-head">
-        <div className="sidebar-label-wrap">
-          <span className="sidebar-label">My Projects</span>
-          <span className="projects-used-badge">USED: {projects.length}/5</span>
-        </div>
-        <button className="icon-btn small" aria-label="Add project" onClick={() => setAdding(true)}>
+        <span className="sidebar-label">My Projects</span>
+        <button className="icon-btn small add-project-btn" aria-label="Add project" onClick={() => setAdding(true)}>
           <Icon name="plus" size={14} />
         </button>
       </div>

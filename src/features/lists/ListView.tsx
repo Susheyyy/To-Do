@@ -7,7 +7,6 @@ import { DisplayMenu } from "../../components/DisplayMenu";
 import { Group } from "../../components/Group";
 import { Icon } from "../../components/Icon";
 import { Mascot } from "../../components/Mascot";
-import { QuickAdd } from "../../components/QuickAdd";
 import { sortTasks } from "../../lib/sortTasks";
 import { todayIso, useTasks } from "../../stores/tasks.store";
 import { ListId, useUi } from "../../stores/ui.store";
@@ -17,7 +16,6 @@ const TITLES: Record<ListId, string> = {
   inbox: "Inbox",
   today: "Today",
   upcoming: "Upcoming",
-  search: "Search",
   filters: "Filters & Labels",
 };
 
@@ -80,10 +78,11 @@ export function ListView({ id }: { id: ListId }) {
           </button>
         </div>
         <div className="header-tools">
-          <DisplayMenu showCompletedToggle={id === "today"} count={totalCount} />
-          <button className="icon-btn small" aria-label="More options" title="More options">
-            <Icon name="more" size={16} />
-          </button>
+          <DisplayMenu
+            showCompletedToggle={id === "today"}
+            count={totalCount}
+            showCalendar={id !== "today"}
+          />
         </div>
       </div>
 
@@ -93,11 +92,6 @@ export function ListView({ id }: { id: ListId }) {
         </div>
         {id === "today" && (
           <div className="page-sub-row">
-            <span className="task-count-status">
-              <Icon name="check" size={13} />
-              <span>{rawDueNow.length} tasks</span>
-            </span>
-            <span className="page-sub-dot">·</span>
             <span className="page-sub">{format(new Date(), "EEEE, d MMMM")}</span>
             <span className="page-sub-dot">·</span>
             <span className="page-sub">
@@ -125,7 +119,17 @@ export function ListView({ id }: { id: ListId }) {
         </div>
       )}
 
-      {id !== "upcoming" && <QuickAdd defaultDue={id === "today" ? todayIso() : null} />}
+      {id === "today" && layout === "list" && (
+        <div className="page-add-inline">
+          <AddInline due={todayIso()} />
+        </div>
+      )}
+
+      {id === "inbox" && layout === "list" && (
+        <div className="page-add-inline">
+          <AddInline due={null} />
+        </div>
+      )}
 
       {error && <p className="error-text">{error}</p>}
 
@@ -153,7 +157,7 @@ export function ListView({ id }: { id: ListId }) {
           />
         )}
 
-        {id === "today" && layout === "calendar" && (
+        {id !== "today" && layout === "calendar" && (
           <div className="calendar-view-placeholder">
             <div className="week-strip" style={{ marginTop: 0 }}>
               {days.map((d) => (

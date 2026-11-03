@@ -199,59 +199,63 @@ button {
 }
 
 .priority-high {
-  color: #de4c4a;
+  color: var(--color-p1, var(--color-accent));
 }
 
 .priority-medium {
-  color: #f28b24;
+  color: var(--color-p2, var(--color-accent));
 }
 
 .priority-low {
-  color: #4073d6;
+  color: var(--color-p3, var(--color-muted));
 }
 
 .priority-none {
-  color: var(--color-muted);
+  color: var(--color-p4, var(--color-muted));
 }
 
 .check-btn.priority-high {
-  border-color: #de4c4a;
+  border-color: var(--color-p1, var(--color-accent));
 }
 .check-btn.priority-high:hover {
-  background: rgba(222, 76, 74, 0.15);
+  background: var(--color-p1, var(--color-accent));
+  opacity: 0.2;
 }
 .check-btn.priority-high.checked {
-  background: #de4c4a;
+  background: var(--color-p1, var(--color-accent));
 }
 
 .check-btn.priority-medium {
-  border-color: #f28b24;
+  border-color: var(--color-p2, var(--color-accent));
 }
 .check-btn.priority-medium:hover {
-  background: rgba(242, 139, 36, 0.15);
+  background: var(--color-p2, var(--color-accent));
+  opacity: 0.2;
 }
 .check-btn.priority-medium.checked {
-  background: #f28b24;
+  background: var(--color-p2, var(--color-accent));
 }
 
 .check-btn.priority-low {
-  border-color: #4073d6;
+  border-color: var(--color-p3, var(--color-muted));
 }
 .check-btn.priority-low:hover {
-  background: rgba(64, 115, 214, 0.15);
+  background: var(--color-p3, var(--color-muted));
+  opacity: 0.2;
 }
 .check-btn.priority-low.checked {
-  background: #4073d6;
+  background: var(--color-p3, var(--color-muted));
 }
 
 .check-btn.priority-none {
-  border-color: var(--color-muted);
+  border-color: var(--color-p4, var(--color-muted));
 }
 .check-btn.priority-none:hover {
-  background: rgba(128, 128, 128, 0.15);
+  background: var(--color-p4, var(--color-muted));
+  opacity: 0.2;
 }
 .check-btn.priority-none.checked {
-  background: var(--color-muted);
+  background: var(--color-p4, var(--color-muted));
 }
 
 .chevron {
@@ -1087,16 +1091,20 @@ button {
   gap: 4px;
 }
 
-.sidebar-label-wrap {
+.projects-head {
   display: flex;
   align-items: center;
-  gap: 8px;
+  justify-content: space-between;
+  padding: 4px 8px;
 }
 
-.projects-used-badge {
-  font-size: 11px;
-  color: var(--color-muted);
-  font-weight: 600;
+.projects-head .add-project-btn {
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.projects-head:hover .add-project-btn {
+  opacity: 1;
 }
 
 .view-navigation-bar {
@@ -1519,4 +1527,70 @@ button {
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
+}
+
+.search-modal {
+  width: min(600px, 92vw);
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  padding: 14px;
+}
+
+.modal-search-bar {
+  margin-top: 0;
+  border-radius: 8px;
+}
+
+.search-modal-results {
+  margin-top: 12px;
+  overflow-y: auto;
+  max-height: 55vh;
+}
+
+.section-title-with-action {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin: 22px 0 8px;
+}
+
+.add-label-btn {
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+}
+
+.add-label-btn:hover {
+  opacity: 1;
+}
+
+.add-label-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  margin-bottom: 12px;
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  background: var(--color-surface);
+}
+
+.label-at-prefix {
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.add-label-input {
+  border: none;
+  background: transparent;
+  font: inherit;
+  font-size: 13px;
+  color: var(--color-text);
+  outline: none;
+  width: 140px;
+}
+
+.page-add-inline {
+  margin-top: 4px;
+  margin-bottom: 12px;
 }
