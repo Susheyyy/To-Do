@@ -5,8 +5,8 @@ use uuid::Uuid;
 use crate::error::{AppError, AppResult};
 use crate::models::{Subtask, Task, TaskInput};
 
-const PRIORITIES: [&str; 3] = ["high", "medium", "low"];
-const ORDER: &str = "ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 ELSE 2 END, due_time, created_at";
+const PRIORITIES: [&str; 4] = ["high", "medium", "low", "none"];
+const ORDER: &str = "ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END, due_time, created_at";
 
 fn now() -> String {
     Utc::now().to_rfc3339()

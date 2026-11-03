@@ -121,9 +121,10 @@ function DetailBody({ task, onClose }: { task: Task; onClose: () => void }) {
         <label className="field">
           <span>Priority</span>
           <select value={task.priority} onChange={(e) => save({ priority: e.target.value as Priority })}>
-            <option value="high">High</option>
-            <option value="medium">Medium</option>
-            <option value="low">Low</option>
+            <option value="high">Priority 1</option>
+            <option value="medium">Priority 2</option>
+            <option value="low">Priority 3</option>
+            <option value="none">Priority 4</option>
           </select>
         </label>
 

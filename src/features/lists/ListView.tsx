@@ -2,26 +2,30 @@ import { addDays, format, parseISO } from "date-fns";
 
 import { useTheme } from "../../app/ThemeProvider";
 import { AddInline } from "../../components/AddInline";
-import { Board, LayoutSwitch } from "../../components/Board";
+import { Board } from "../../components/Board";
 import { DisplayMenu } from "../../components/DisplayMenu";
 import { Group } from "../../components/Group";
+import { Icon } from "../../components/Icon";
 import { Mascot } from "../../components/Mascot";
 import { QuickAdd } from "../../components/QuickAdd";
 import { sortTasks } from "../../lib/sortTasks";
 import { todayIso, useTasks } from "../../stores/tasks.store";
 import { ListId, useUi } from "../../stores/ui.store";
-import type { Priority } from "../../types/models";
+import type { Priority, Task } from "../../types/models";
 
 const TITLES: Record<ListId, string> = {
   inbox: "Inbox",
   today: "Today",
   upcoming: "Upcoming",
+  search: "Search",
+  filters: "Filters & Labels",
 };
 
 const PRIORITY_COLUMNS: { key: Priority; title: string }[] = [
-  { key: "high", title: "High" },
-  { key: "medium", title: "Medium" },
-  { key: "low", title: "Low" },
+  { key: "high", title: "Priority 1" },
+  { key: "medium", title: "Priority 2" },
+  { key: "low", title: "Priority 3" },
+  { key: "none", title: "Priority 4" },
 ];
 
 const dayIso = (offset: number) => format(addDays(new Date(), offset), "yyyy-MM-dd");
@@ -37,34 +41,69 @@ export function ListView({ id }: { id: ListId }) {
   const layout = useUi((s) => s.layout);
   const showCompleted = useUi((s) => s.showCompleted);
   const sort = useUi((s) => s.sort);
+  const filterPriority = useUi((s) => s.filterPriority);
+  const filterTag = useUi((s) => s.filterTag);
 
-  const dueNow = [...overdue, ...today];
-  const inbox = sortTasks(open.filter((t) => !t.dueDate && !t.projectId), sort);
+  function applyFilters(list: Task[]): Task[] {
+    let res = list;
+    if (filterPriority !== "all") {
+      res = res.filter((t) => t.priority === filterPriority);
+    }
+    if (filterTag !== "all") {
+      res = res.filter((t) => t.tags.includes(filterTag));
+    }
+    return sortTasks(res, sort);
+  }
+
+  const rawDueNow = [...overdue, ...today];
+  const dueNow = applyFilters(rawDueNow);
+  const inbox = applyFilters(open.filter((t) => !t.dueDate && !t.projectId));
   const days = Array.from({ length: 7 }, (_, i) => dayIso(i));
-  const tasksOn = (d: string) => sortTasks(open.filter((t) => t.dueDate === d), sort);
-  const later = sortTasks(open.filter((t) => t.dueDate !== null && t.dueDate > days[6]), sort);
+  const tasksOn = (d: string) => applyFilters(open.filter((t) => t.dueDate === d));
+  const later = applyFilters(open.filter((t) => t.dueDate !== null && t.dueDate > days[6]));
 
   const isEmpty =
     (id === "inbox" && inbox.length === 0) ||
     (id === "today" && dueNow.length === 0 && (!showCompleted || completedToday.length === 0));
 
+  const totalCount = id === "today" ? rawDueNow.length : id === "inbox" ? open.filter((t) => !t.dueDate && !t.projectId).length : open.length;
+
   return (
     <div className={`page ${id === "today" && layout === "board" ? "wide" : ""}`}>
+      <div className="view-navigation-bar">
+        <div className="history-nav-btns">
+          <button className="icon-btn small nav-chevron" aria-label="Back">
+            <Icon name="chevronLeft" size={14} />
+          </button>
+          <button className="icon-btn small nav-chevron" aria-label="Forward">
+            <Icon name="chevronRight" size={14} />
+          </button>
+        </div>
+        <div className="header-tools">
+          <DisplayMenu showCompletedToggle={id === "today"} count={totalCount} />
+          <button className="icon-btn small" aria-label="More options" title="More options">
+            <Icon name="more" size={16} />
+          </button>
+        </div>
+      </div>
+
       <header className="page-header">
         <div className="page-title-row">
           <h1>{TITLES[id]}</h1>
-          <div className="header-tools">
-            <DisplayMenu showCompletedToggle={id === "today"} />
-            {id === "today" && <LayoutSwitch />}
-          </div>
         </div>
         {id === "today" && (
-          <>
-            <p className="page-sub">{format(new Date(), "EEEE, d MMMM")}</p>
-            <p className="page-sub">
-              {dueNow.length} pending · {completedToday.length} done today
-            </p>
-          </>
+          <div className="page-sub-row">
+            <span className="task-count-status">
+              <Icon name="check" size={13} />
+              <span>{rawDueNow.length} tasks</span>
+            </span>
+            <span className="page-sub-dot">·</span>
+            <span className="page-sub">{format(new Date(), "EEEE, d MMMM")}</span>
+            <span className="page-sub-dot">·</span>
+            <span className="page-sub">
+              {rawDueNow.length} pending · {completedToday.length} done today
+            </span>
+          </div>
         )}
       </header>
 
@@ -95,10 +134,10 @@ export function ListView({ id }: { id: ListId }) {
 
         {id === "today" && layout === "list" && (
           <>
-            {overdue.length > 0 && <Group title="Overdue" tasks={sortTasks(overdue, sort)} />}
-            {today.length > 0 && <Group title="Today" tasks={sortTasks(today, sort)} />}
+            {overdue.length > 0 && <Group title="Overdue" tasks={applyFilters(overdue)} />}
+            {today.length > 0 && <Group title="Today" tasks={applyFilters(today)} />}
             {showCompleted && completedToday.length > 0 && (
-              <Group title="Completed" tasks={completedToday} />
+              <Group title="Completed" tasks={applyFilters(completedToday)} />
             )}
           </>
         )}
@@ -108,9 +147,35 @@ export function ListView({ id }: { id: ListId }) {
             columns={PRIORITY_COLUMNS.map((c) => ({
               key: c.key,
               title: c.title,
-              tasks: sortTasks(dueNow.filter((t) => t.priority === c.key), sort),
+              due: todayIso(),
+              tasks: dueNow.filter((t) => t.priority === c.key),
             }))}
           />
+        )}
+
+        {id === "today" && layout === "calendar" && (
+          <div className="calendar-view-placeholder">
+            <div className="week-strip" style={{ marginTop: 0 }}>
+              {days.map((d) => (
+                <div key={d} className="calendar-col">
+                  <div className="calendar-col-header">
+                    <span className="week-name">{format(parseISO(d), "EEE")}</span>
+                    <span className="week-num">{format(parseISO(d), "d")}</span>
+                  </div>
+                  <div className="calendar-task-list">
+                    {tasksOn(d).map((task) => (
+                      <div key={task.id} className="calendar-task-card">
+                        <span className={`priority-${task.priority}`}>
+                          <Icon name="flag" size={12} />
+                        </span>
+                        <span className="calendar-task-title">{task.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
         )}
 
         {id === "upcoming" && (
@@ -118,7 +183,7 @@ export function ListView({ id }: { id: ListId }) {
             {overdue.length > 0 && (
               <Group
                 title="Overdue"
-                tasks={sortTasks(overdue, sort)}
+                tasks={applyFilters(overdue)}
                 extra={
                   <button className="chip" onClick={() => void rescheduleOverdue()}>
                     Reschedule to today

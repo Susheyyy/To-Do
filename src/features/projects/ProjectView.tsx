@@ -2,7 +2,7 @@ import { FormEvent, useEffect, useState } from "react";
 
 import { useTheme } from "../../app/ThemeProvider";
 import { AddInline } from "../../components/AddInline";
-import { Board, LayoutSwitch } from "../../components/Board";
+import { Board } from "../../components/Board";
 import { DisplayMenu } from "../../components/DisplayMenu";
 import { Group } from "../../components/Group";
 import { Icon } from "../../components/Icon";
@@ -89,8 +89,7 @@ export function ProjectView({ projectId }: { projectId: string }) {
             {project.name}
           </h1>
           <div className="header-tools">
-            <DisplayMenu />
-            <LayoutSwitch />
+            <DisplayMenu count={openTasks.length} />
             <ProjectMenu key={project.id} project={project} />
           </div>
         </div>

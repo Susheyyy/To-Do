@@ -1,7 +1,7 @@
 import type { SortKey } from "../stores/ui.store";
 import type { Priority, Task } from "../types/models";
 
-const RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2 };
+const RANK: Record<Priority, number> = { high: 0, medium: 1, low: 2, none: 3 };
 
 export function sortTasks(tasks: Task[], sort: SortKey): Task[] {
   const list = [...tasks];

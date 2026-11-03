@@ -16,13 +16,14 @@ const PRIORITY_WORDS: Record<string, Priority> = {
   medium: "medium",
   med: "medium",
   low: "low",
+  none: "none",
 };
 
 const PRIORITY_CODES: Record<string, Priority> = {
   "1": "high",
   "2": "medium",
   "3": "low",
-  "4": "low",
+  "4": "none",
 };
 
 const WEEKDAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"];
@@ -138,7 +139,7 @@ export function parseTask(raw: string, today: Date = new Date()): ParsedTask {
 
   const tags: string[] = [];
   let projectName: string | null = null;
-  let priority: Priority = "medium";
+  let priority: Priority = "none";
 
   text = text.replace(/(^|\s)@([\w-]+)/g, (_, space: string, tag: string) => {
     tags.push(tag.toLowerCase());
@@ -150,7 +151,7 @@ export function parseTask(raw: string, today: Date = new Date()): ParsedTask {
     return space;
   });
 
-  text = text.replace(/(^|\s)!(high|medium|med|low)\b/gi, (_, space: string, word: string) => {
+  text = text.replace(/(^|\s)!(high|medium|med|low|none)\b/gi, (_, space: string, word: string) => {
     priority = PRIORITY_WORDS[word.toLowerCase()];
     return space;
   });

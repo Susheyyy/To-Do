@@ -1,4 +1,4 @@
-export type Priority = "high" | "medium" | "low";
+export type Priority = "high" | "medium" | "low" | "none";
 
 export interface Subtask {
   id: string;

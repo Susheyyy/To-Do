@@ -6,12 +6,16 @@ import { Sidebar } from "../../components/Sidebar";
 import { useTasks } from "../../stores/tasks.store";
 import { ListId, useUi, ViewId } from "../../stores/ui.store";
 import { TaskDetail } from "../detail/TaskDetail";
+import { FiltersView } from "../filters/FiltersView";
+import { SearchView } from "../filters/SearchView";
 import { ListView } from "../lists/ListView";
 import { ProjectView } from "../projects/ProjectView";
 import { SettingsView } from "../settings/SettingsView";
 
 function renderView(view: ViewId) {
   if (view === "settings") return <SettingsView />;
+  if (view === "search") return <SearchView />;
+  if (view === "filters") return <FiltersView />;
   if (view.startsWith("project:")) return <ProjectView projectId={view.slice("project:".length)} />;
   return <ListView id={view as ListId} />;
 }

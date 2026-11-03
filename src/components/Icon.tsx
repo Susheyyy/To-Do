@@ -15,8 +15,17 @@ export type IconName =
   | "sun"
   | "upcoming"
   | "gear"
-  |"close"
-  | "more";
+  | "close"
+  | "more"
+  | "search"
+  | "filter"
+  | "tag"
+  | "board"
+  | "list"
+  | "bell"
+  | "sidebar"
+  | "chevronLeft"
+  | "chevronRight";
 
 const paths: Record<IconName, ReactNode> = {
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
@@ -88,6 +97,54 @@ const paths: Record<IconName, ReactNode> = {
       <circle cx="19" cy="12" r="1.4" fill="currentColor" stroke="none" />
     </>
   ),
+  search: (
+    <>
+      <circle cx="11" cy="11" r="7" />
+      <path d="M21 21l-4.35-4.35" />
+    </>
+  ),
+  filter: (
+    <>
+      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+    </>
+  ),
+  tag: (
+    <>
+      <path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" />
+      <line x1="7" y1="7" x2="7.01" y2="7" />
+    </>
+  ),
+  board: (
+    <>
+      <rect x="3" y="4" width="5.5" height="16" rx="1.5" />
+      <rect x="11" y="4" width="5.5" height="11" rx="1.5" />
+      <rect x="19" y="4" width="2" height="16" rx="1" />
+    </>
+  ),
+  list: (
+    <>
+      <line x1="8" y1="6" x2="21" y2="6" />
+      <line x1="8" y1="12" x2="21" y2="12" />
+      <line x1="8" y1="18" x2="21" y2="18" />
+      <line x1="3" y1="6" x2="3.01" y2="6" />
+      <line x1="3" y1="12" x2="3.01" y2="12" />
+      <line x1="3" y1="18" x2="3.01" y2="18" />
+    </>
+  ),
+  bell: (
+    <>
+      <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
+      <path d="M13.73 21a2 2 0 0 1-3.46 0" />
+    </>
+  ),
+  sidebar: (
+    <>
+      <rect x="3" y="3" width="18" height="18" rx="2" />
+      <line x1="9" y1="3" x2="9" y2="21" />
+    </>
+  ),
+  chevronLeft: <path d="M15 18l-6-6 6-6" />,
+  chevronRight: <path d="M9 18l6-6-6-6" />,
 };
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {

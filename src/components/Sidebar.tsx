@@ -7,10 +7,12 @@ import { ListId, useUi } from "../stores/ui.store";
 import { Icon } from "./Icon";
 import { Mascot } from "./Mascot";
 
-const NAV: { id: ListId; label: string; icon: "inbox" | "sun" | "upcoming" }[] = [
+const NAV: { id: ListId; label: string; icon: "search" | "inbox" | "sun" | "upcoming" | "filter" }[] = [
+  { id: "search", label: "Search", icon: "search" },
   { id: "inbox", label: "Inbox", icon: "inbox" },
   { id: "today", label: "Today", icon: "sun" },
   { id: "upcoming", label: "Upcoming", icon: "upcoming" },
+  { id: "filters", label: "Filters & Labels", icon: "filter" },
 ];
 
 export function Sidebar() {
@@ -28,9 +30,11 @@ export function Sidebar() {
   const [name, setName] = useState("");
 
   const counts: Record<ListId, number> = {
+    search: 0,
     inbox: open.filter((t) => !t.dueDate && !t.projectId).length,
     today: overdue.length + today.length,
     upcoming: open.filter((t) => t.dueDate !== null).length,
+    filters: 0,
   };
 
   async function submitProject(e: FormEvent) {
@@ -45,9 +49,24 @@ export function Sidebar() {
 
   return (
     <aside className="sidebar">
-      <div className="brand">
-        <Mascot size={24} />
-        <span>To-Do</span>
+      <div className="sidebar-top">
+        <div className="user-profile">
+          <div className="avatar-circle">
+            <Mascot size={22} />
+          </div>
+          <span className="user-name">Sushmita</span>
+          <span className="user-chevron">
+            <Icon name="chevron" size={12} />
+          </span>
+        </div>
+        <div className="sidebar-top-actions">
+          <button className="icon-btn small" aria-label="Notifications" title="Notifications">
+            <Icon name="bell" size={17} />
+          </button>
+          <button className="icon-btn small" aria-label="Toggle sidebar" title="Toggle sidebar">
+            <Icon name="sidebar" size={17} />
+          </button>
+        </div>
       </div>
 
       <button className="add-task-btn" onClick={openQuickAdd}>
@@ -72,7 +91,10 @@ export function Sidebar() {
       </nav>
 
       <div className="projects-head">
-        <span className="sidebar-label">My Projects</span>
+        <div className="sidebar-label-wrap">
+          <span className="sidebar-label">My Projects</span>
+          <span className="projects-used-badge">USED: {projects.length}/5</span>
+        </div>
         <button className="icon-btn small" aria-label="Add project" onClick={() => setAdding(true)}>
           <Icon name="plus" size={14} />
         </button>
