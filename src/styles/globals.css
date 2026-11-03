@@ -1,0 +1,74 @@
+:root {
+  --color-bg: #fdf4f8;
+  --color-surface: #ffffff;
+  --color-text: #5b4a5f;
+  --color-muted: #a895ad;
+  --color-accent: #f4a6c8;
+  --color-accentText: #5b4a5f;
+  --color-border: #f1dfe9;
+  --font-body: system-ui, sans-serif;
+  --radius: 16px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-body);
+  transition: background 0.3s ease, color 0.3s ease;
+  user-select: none;
+}
+
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: 24px 20px;
+}
+
+.card {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 16px;
+}
+
+.muted {
+  color: var(--color-muted);
+}
+
+button {
+  font: inherit;
+  border: none;
+  border-radius: 999px;
+  padding: 8px 14px;
+  background: var(--color-accent);
+  color: var(--color-accentText);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.mascot-float {
+  animation: float 4s ease-in-out infinite;
+}
+
+.mascot-float[data-motion="off"] {
+  animation: none;
+}
+
+@keyframes float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-4px); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .mascot-float {
+    animation: none;
+  }
+}
