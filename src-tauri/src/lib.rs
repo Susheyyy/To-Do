@@ -42,6 +42,7 @@ pub fn run() {
             tasks::list_overdue,
             tasks::list_tasks_for_project,
             tasks::list_tasks_for_tag,
+            tasks::list_completed_between,
             projects::create_project,
             projects::list_projects,
             projects::delete_project,

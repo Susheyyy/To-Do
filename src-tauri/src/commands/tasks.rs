@@ -100,3 +100,9 @@ pub fn list_tasks_for_tag(state: State<'_, AppState>, tag: String) -> AppResult<
     let conn = state.conn()?;
     tasks_repo::list_for_tag(&conn, &tag)
 }
+
+#[tauri::command]
+pub fn list_completed_between(state: State<'_, AppState>, start: String, end: String) -> AppResult<Vec<Task>> {
+    let conn = state.conn()?;
+    tasks_repo::list_completed_between(&conn, &start, &end)
+}

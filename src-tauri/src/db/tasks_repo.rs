@@ -352,3 +352,19 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
     }
     Ok(())
 }
+
+
+pub fn list_completed_between(conn: &Connection, start: &str, end: &str) -> AppResult<Vec<Task>> {
+    collect(
+        conn,
+        &format!(
+            "SELECT id FROM tasks
+             WHERE deleted_at IS NULL
+               AND completed_at IS NOT NULL
+               AND julianday(completed_at) >= julianday(?1)
+               AND julianday(completed_at) < julianday(?2)
+             {ORDER}"
+        ),
+        &[&start, &end],
+    )
+}
