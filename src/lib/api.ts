@@ -17,10 +17,13 @@ export const api = {
   listCompletedBetween: (start: string, end: string) =>
     invoke<Task[]>("list_completed_between", { start, end }),
   listProjects: () => invoke<Project[]>("list_projects"),
-  createProject: (name: string, color: string | null) =>
-    invoke<Project>("create_project", { name, color }),
-  createSection: (projectId: string, name: string) =>
-    invoke<Section>("create_section", { projectId, name }),
+  createProject: (name: string, color: string | null) => invoke<Project>("create_project", { name, color }),
+  updateProject: (id: string, name: string, color: string | null) =>
+    invoke<void>("update_project", { id, name, color }),
+  deleteProject: (id: string) => invoke<void>("delete_project", { id }),
+  createSection: (projectId: string, name: string) => invoke<Section>("create_section", { projectId, name }),
+  renameSection: (id: string, name: string) => invoke<void>("rename_section", { id, name }),
+  deleteSection: (id: string) => invoke<void>("delete_section", { id }),
   undo: () => invoke<string | null>("undo"),
   redo: () => invoke<string | null>("redo"),
 };

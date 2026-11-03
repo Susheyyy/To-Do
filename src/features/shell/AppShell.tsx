@@ -1,20 +1,14 @@
 import { useEffect } from "react";
-import { addDays, format } from "date-fns";
 
+import { ConfirmHost } from "../../components/ConfirmHost";
 import { QuickAdd } from "../../components/QuickAdd";
 import { Sidebar } from "../../components/Sidebar";
-import { todayIso, useTasks } from "../../stores/tasks.store";
+import { useTasks } from "../../stores/tasks.store";
 import { ListId, useUi, ViewId } from "../../stores/ui.store";
+import { TaskDetail } from "../detail/TaskDetail";
 import { ListView } from "../lists/ListView";
 import { ProjectView } from "../projects/ProjectView";
 import { SettingsView } from "../settings/SettingsView";
-
-function quickAddDefaults(view: ViewId): { due: string | null; projectId: string | null } {
-  if (view === "today") return { due: todayIso(), projectId: null };
-  if (view === "upcoming") return { due: format(addDays(new Date(), 1), "yyyy-MM-dd"), projectId: null };
-  if (view.startsWith("project:")) return { due: null, projectId: view.slice("project:".length) };
-  return { due: null, projectId: null };
-}
 
 function renderView(view: ViewId) {
   if (view === "settings") return <SettingsView />;
@@ -32,7 +26,9 @@ export function AppShell() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       if (e.key === "Escape") {
-        useUi.getState().closeQuickAdd();
+        const ui = useUi.getState();
+        if (ui.quickAddOpen) ui.closeQuickAdd();
+        else if (ui.selectedTaskId) ui.closeTask();
         return;
       }
       const tag = (e.target as HTMLElement).tagName;
@@ -51,22 +47,17 @@ export function AppShell() {
     return () => window.removeEventListener("keydown", onKey);
   }, [undo, redo]);
 
-  const defaults = quickAddDefaults(view);
-
   return (
     <div className="shell">
       <Sidebar />
       <main className="main">{renderView(view)}</main>
+      <TaskDetail />
+      <ConfirmHost />
 
       {quickAddOpen && (
         <div className="modal-backdrop" onMouseDown={closeQuickAdd}>
           <div className="modal" onMouseDown={(e) => e.stopPropagation()}>
-            <QuickAdd
-              defaultDue={defaults.due}
-              defaultProjectId={defaults.projectId}
-              autoFocus
-              onDone={closeQuickAdd}
-            />
+            <QuickAdd defaultDue={null} defaultProjectId={null} autoFocus onDone={closeQuickAdd} />
           </div>
         </div>
       )}

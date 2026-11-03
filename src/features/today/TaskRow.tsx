@@ -2,10 +2,11 @@ import { FormEvent, useState } from "react";
 import { format, parseISO } from "date-fns";
 
 import { Icon } from "../../components/Icon";
-import { toInput, useTasks } from "../../stores/tasks.store";
-import type { Priority, Task } from "../../types/models";
 import { formatTime } from "../../lib/time";
 import { useSettings } from "../../stores/settings.store";
+import { toInput, useTasks } from "../../stores/tasks.store";
+import { useUi } from "../../stores/ui.store";
+import type { Priority, Task } from "../../types/models";
 
 const NEXT_PRIORITY: Record<Priority, Priority> = {
   medium: "high",
@@ -14,69 +15,52 @@ const NEXT_PRIORITY: Record<Priority, Priority> = {
 };
 
 export function TaskRow({ task }: { task: Task }) {
+  const clock = useSettings((s) => s.clock);
   const toggleTask = useTasks((s) => s.toggleTask);
   const updateTask = useTasks((s) => s.updateTask);
   const deleteTask = useTasks((s) => s.deleteTask);
   const addSubtask = useTasks((s) => s.addSubtask);
   const toggleSubtask = useTasks((s) => s.toggleSubtask);
+  const openTask = useUi((s) => s.openTask);
 
-  const clock = useSettings((s) => s.clock);
-
-  const [editing, setEditing] = useState(false);
-  const [draft, setDraft] = useState(task.title);
-  const [open, setOpen] = useState(false);
+  const [leaving, setLeaving] = useState(false);
+  const [expanded, setExpanded] = useState(false);
   const [subtaskText, setSubtaskText] = useState("");
+  const done = task.completedAt !== null;
 
-  function saveTitle() {
-    setEditing(false);
-    const title = draft.trim();
-    if (!title || title === task.title) {
-      setDraft(task.title);
+  function complete() {
+    if (done) {
+      void toggleTask(task);
       return;
     }
-    void updateTask(task.id, toInput(task, { title }));
+    setLeaving(true);
+    window.setTimeout(() => void toggleTask(task), 260);
   }
 
   function submitSubtask(e: FormEvent) {
     e.preventDefault();
     if (!subtaskText.trim()) return;
-    void addSubtask(task.id, subtaskText);
+    void addSubtask(task.id, subtaskText.trim());
     setSubtaskText("");
   }
 
+  const classes = ["task-row", leaving ? "leaving" : "", done ? "is-done" : ""].join(" ");
+
   return (
-    <div className="task-row card">
+    <div className={classes}>
       <div className="task-main">
-        <button className="check-btn" onClick={() => void toggleTask(task)} aria-label="Complete task" />
+        <button
+          className={`check-btn ${done ? "checked" : ""}`}
+          onClick={complete}
+          aria-label={done ? "Reopen task" : "Complete task"}
+        >
+          {done && <Icon name="check" size={12} />}
+        </button>
 
         <div className="task-body">
-          {editing ? (
-            <input
-              className="title-input"
-              autoFocus
-              value={draft}
-              onChange={(e) => setDraft(e.target.value)}
-              onBlur={saveTitle}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") saveTitle();
-                if (e.key === "Escape") {
-                  setDraft(task.title);
-                  setEditing(false);
-                }
-              }}
-            />
-          ) : (
-            <span
-              className="task-title"
-              onDoubleClick={() => {
-                setDraft(task.title);
-                setEditing(true);
-              }}
-            >
-              {task.title}
-            </span>
-          )}
-
+          <span className="task-title" onClick={() => openTask(task.id)}>
+            {task.title}
+          </span>
           <div className="task-meta">
             {task.dueDate && (
               <span>
@@ -105,11 +89,11 @@ export function TaskRow({ task }: { task: Task }) {
 
         <button
           className="icon-btn"
-          onClick={() => setOpen(!open)}
+          onClick={() => setExpanded(!expanded)}
           aria-label="Show subtasks"
-          aria-expanded={open}
+          aria-expanded={expanded}
         >
-          <span className={open ? "chevron open" : "chevron"}>
+          <span className={expanded ? "chevron open" : "chevron"}>
             <Icon name="chevron" size={16} />
           </span>
         </button>
@@ -119,7 +103,7 @@ export function TaskRow({ task }: { task: Task }) {
         </button>
       </div>
 
-      {open && (
+      {expanded && (
         <div className="subtasks">
           {task.subtasks.map((sub) => (
             <label key={sub.id} className="subtask">

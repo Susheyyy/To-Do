@@ -1,11 +1,13 @@
+import { FormEvent, useState } from "react";
+
 import { useTheme } from "../app/ThemeProvider";
 import { projectColor } from "../lib/projectColors";
-import { todayIso, useTasks } from "../stores/tasks.store";
-import { ListId, useUi, ViewId } from "../stores/ui.store";
-import { Icon, IconName } from "./Icon";
+import { useTasks } from "../stores/tasks.store";
+import { ListId, useUi } from "../stores/ui.store";
+import { Icon } from "./Icon";
 import { Mascot } from "./Mascot";
 
-const LISTS: { id: ListId; label: string; icon: IconName }[] = [
+const NAV: { id: ListId; label: string; icon: "inbox" | "sun" | "upcoming" }[] = [
   { id: "inbox", label: "Inbox", icon: "inbox" },
   { id: "today", label: "Today", icon: "sun" },
   { id: "upcoming", label: "Upcoming", icon: "upcoming" },
@@ -20,68 +22,104 @@ export function Sidebar() {
   const today = useTasks((s) => s.today);
   const overdue = useTasks((s) => s.overdue);
   const projects = useTasks((s) => s.projects);
+  const createProject = useTasks((s) => s.createProject);
+
+  const [adding, setAdding] = useState(false);
+  const [name, setName] = useState("");
 
   const counts: Record<ListId, number> = {
-    inbox: open.filter((t) => !t.dueDate).length,
-    today: today.length + overdue.length,
-    upcoming: open.filter((t) => t.dueDate !== null && t.dueDate > todayIso()).length,
+    inbox: open.filter((t) => !t.dueDate && !t.projectId).length,
+    today: overdue.length + today.length,
+    upcoming: open.filter((t) => t.dueDate !== null).length,
   };
+
+  async function submitProject(e: FormEvent) {
+    e.preventDefault();
+    const trimmed = name.trim();
+    if (!trimmed) return;
+    const id = await createProject(trimmed);
+    setName("");
+    setAdding(false);
+    setView(`project:${id}`);
+  }
 
   return (
     <aside className="sidebar">
-      <div className="sidebar-brand">
-        <Mascot size={30} />
+      <div className="brand">
+        <Mascot size={24} />
         <span>To-Do</span>
       </div>
 
       <button className="add-task-btn" onClick={openQuickAdd}>
-        <Icon name="plus" size={18} />
+        <span className="add-task-icon">
+          <Icon name="plus" size={14} />
+        </span>
         <span>Add task</span>
       </button>
 
-      <nav>
-        {LISTS.map((item) => (
+      <nav className="nav">
+        {NAV.map((item) => (
           <button
             key={item.id}
             className={`nav-item ${view === item.id ? "active" : ""}`}
-            aria-current={view === item.id}
             onClick={() => setView(item.id)}
           >
-            <Icon name={item.icon} size={18} />
-            <span>{item.label}</span>
-            {counts[item.id] > 0 && <span className="count">{counts[item.id]}</span>}
+            <Icon name={item.icon} size={17} />
+            <span className="nav-label">{item.label}</span>
+            {counts[item.id] > 0 && <span className="nav-count">{counts[item.id]}</span>}
           </button>
         ))}
       </nav>
 
-      <div className="sidebar-section-title">My Projects</div>
-      <nav>
+      <div className="projects-head">
+        <span className="sidebar-label">My Projects</span>
+        <button className="icon-btn small" aria-label="Add project" onClick={() => setAdding(true)}>
+          <Icon name="plus" size={14} />
+        </button>
+      </div>
+
+      {adding && (
+        <form className="add-project-form" onSubmit={submitProject}>
+          <input
+            className="add-project-input"
+            autoFocus
+            value={name}
+            placeholder="Project name"
+            onChange={(e) => setName(e.target.value)}
+            onBlur={() => {
+              if (!name.trim()) setAdding(false);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Escape") {
+                setName("");
+                setAdding(false);
+              }
+            }}
+            aria-label="Project name"
+          />
+        </form>
+      )}
+
+      <nav className="nav">
         {projects.map((p) => {
-          const key: ViewId = `project:${p.id}`;
-          const count = open.filter((t) => t.projectId === p.id).length;
+          const key = `project:${p.id}` as const;
+          const pending = open.filter((t) => t.projectId === p.id).length;
           return (
-            <button
-              key={p.id}
-              className={`nav-item ${view === key ? "active" : ""}`}
-              aria-current={view === key}
-              onClick={() => setView(key)}
-            >
-              <span className="project-dot" style={{ background: projectColor(theme.id, p.color) }} />
-              <span>{p.name}</span>
-              {count > 0 && <span className="count">{count}</span>}
+            <button key={p.id} className={`nav-item ${view === key ? "active" : ""}`} onClick={() => setView(key)}>
+              <span className="project-hash" style={{ color: projectColor(theme.id, p.color) }}>
+                #
+              </span>
+              <span className="nav-label">{p.name}</span>
+              {pending > 0 && <span className="nav-count">{pending}</span>}
             </button>
           );
         })}
       </nav>
 
       <div className="sidebar-foot">
-        <button
-          className={`nav-item ${view === "settings" ? "active" : ""}`}
-          aria-current={view === "settings"}
-          onClick={() => setView("settings")}
-        >
-          <Icon name="gear" size={18} />
-          <span>Settings</span>
+        <button className={`nav-item ${view === "settings" ? "active" : ""}`} onClick={() => setView("settings")}>
+          <Icon name="gear" size={17} />
+          <span className="nav-label">Settings</span>
         </button>
       </div>
     </aside>

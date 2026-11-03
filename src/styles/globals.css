@@ -607,3 +607,390 @@ button {
 .modal .quick-add {
   border-bottom: none;
 }
+
+.header-tools {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.popover-anchor {
+  position: relative;
+}
+
+.popover {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 40;
+  min-width: 200px;
+  padding: 8px;
+  border-radius: 12px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  animation: pop-in 0.18s ease;
+}
+
+.popover-row,
+.popover-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--color-text);
+  font-size: 14px;
+  text-align: left;
+}
+
+.popover-item:hover,
+.popover-row:hover {
+  background: var(--color-bg);
+}
+
+.popover-item.active {
+  font-weight: 700;
+}
+
+.popover-item.danger,
+.danger {
+  color: #e0556e;
+}
+
+.popover-label {
+  padding: 6px 8px 2px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.popover-input {
+  width: 100%;
+  padding: 7px 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.swatches {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.swatch {
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border-radius: 50%;
+  border: 2px solid transparent;
+}
+
+.swatch.selected {
+  border-color: var(--color-text);
+}
+
+.group {
+  margin-bottom: 8px;
+}
+
+.group-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+}
+
+.group-header .group-title {
+  flex: 1;
+}
+
+.group-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  padding: 6px 0;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--color-text);
+  user-select: none;
+}
+
+.task-row {
+  animation: row-in 0.25s ease;
+  transition: opacity 0.25s ease, transform 0.25s ease, max-height 0.25s ease, padding 0.25s ease;
+  max-height: 200px;
+  overflow: hidden;
+}
+
+.task-row.leaving {
+  opacity: 0;
+  transform: translateX(14px);
+  max-height: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-bottom-color: transparent;
+}
+
+.task-row.is-done .task-title {
+  color: var(--color-muted);
+  text-decoration: line-through;
+}
+
+.task-title {
+  cursor: pointer;
+}
+
+.check-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--color-accentText);
+  transition: background 0.2s ease;
+}
+
+.check-btn.checked {
+  background: var(--color-accent);
+  border-color: var(--color-accent);
+}
+
+.week-strip {
+  display: flex;
+  gap: 6px;
+  margin-top: 16px;
+  overflow-x: auto;
+}
+
+.week-day {
+  flex: 1;
+  min-width: 56px;
+  flex-direction: column;
+  gap: 2px;
+  padding: 8px 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  border-radius: 12px;
+  position: relative;
+}
+
+.week-day:hover {
+  background: var(--color-bg);
+}
+
+.week-name {
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.week-num {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.week-dot {
+  position: absolute;
+  bottom: 5px;
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: var(--color-accent);
+}
+
+.detail-panel {
+  position: fixed;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  z-index: 30;
+  width: 380px;
+  display: flex;
+  flex-direction: column;
+  background: var(--color-surface);
+  border-left: 1px solid var(--color-border);
+  box-shadow: -10px 0 30px rgba(0, 0, 0, 0.08);
+  animation: slide-in 0.25s ease;
+}
+
+.detail-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 16px;
+}
+
+.detail-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 0 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.detail-title {
+  width: 100%;
+  padding: 0;
+  border: none;
+  outline: none;
+  background: transparent;
+  font: inherit;
+  font-size: 19px;
+  font-weight: 700;
+  color: var(--color-text);
+  user-select: text;
+}
+
+.detail-notes,
+.field input,
+.field select,
+.field-row input {
+  width: 100%;
+  padding: 8px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  user-select: text;
+}
+
+.detail-notes {
+  resize: vertical;
+}
+
+.field-row {
+  display: flex;
+  gap: 10px;
+}
+
+.field-row .field {
+  flex: 1;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 13px;
+  color: var(--color-muted);
+}
+
+.subtask-block {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.detail-foot {
+  padding: 12px 16px;
+  border-top: 1px solid var(--color-border);
+}
+
+.detail-foot button {
+  background: transparent;
+  padding: 6px 0;
+}
+
+.section-add {
+  margin-top: 24px;
+}
+
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  padding: 56px 0;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.modal {
+  width: min(560px, 92vw);
+  padding: 12px;
+  border-radius: var(--radius);
+  background: var(--color-surface);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.18);
+  animation: pop-in 0.22s ease;
+}
+
+.modal .quick-add {
+  border-bottom: none;
+}
+
+@keyframes row-in {
+  from { opacity: 0; transform: translateY(-4px); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes slide-in {
+  from { opacity: 0; transform: translateX(24px); }
+  to { opacity: 1; transform: none; }
+}
+
+.main {
+  overflow-y: auto;
+}
+
+.page,
+.page.wide {
+  max-width: none;
+  width: 100%;
+  margin: 0;
+  box-sizing: border-box;
+  padding-left: 40px;
+  padding-right: 40px;
+}
+
+.add-project-form {
+  padding: 4px 8px;
+}
+
+.add-project-input {
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: var(--color-bg);
+  color: var(--color-text);
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+}
+
+.sidebar-add-project {
+  margin: 4px 8px;
+}
+
+.confirm-box {
+  width: min(380px, 92vw);
+}
+
+.confirm-text {
+  margin: 8px 8px 16px;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.confirm-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.danger-chip {
+  color: #e0556e;
+}

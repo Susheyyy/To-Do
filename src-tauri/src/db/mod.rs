@@ -7,13 +7,17 @@ use rusqlite::Connection;
 
 use crate::error::AppResult;
 
-const MIGRATIONS: &[(&str, &str)] = &[("001_init", include_str!("migrations/001_init.sql"))];
+const MIGRATIONS: &[(&str, &str)] = &[
+    ("001_init", include_str!("migrations/001_init.sql")),
+    ("002_priority_none", include_str!("migrations/002_priority_none.sql")),
+];
 
 pub fn open(dir: &Path) -> AppResult<Connection> {
     std::fs::create_dir_all(dir)?;
     let conn = Connection::open(dir.join("todo.db"))?;
-    conn.execute_batch("PRAGMA foreign_keys = ON; PRAGMA journal_mode = WAL;")?;
+    conn.execute_batch("PRAGMA journal_mode = WAL;")?;
     migrate(&conn)?;
+    conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     Ok(conn)
 }
 
@@ -30,13 +34,18 @@ fn migrate(conn: &Connection) -> AppResult<()> {
             [name],
             |row| row.get(0),
         )?;
-        if !applied {
-            conn.execute_batch(sql)?;
-            conn.execute(
-                "INSERT INTO schema_migrations (name, applied_at) VALUES (?1, datetime('now'))",
-                [name],
-            )?;
+        if applied {
+            continue;
         }
+        conn.execute_batch("PRAGMA foreign_keys = OFF;")?;
+        let tx = conn.unchecked_transaction()?;
+        tx.execute_batch(sql)?;
+        tx.execute(
+            "INSERT INTO schema_migrations (name, applied_at) VALUES (?1, datetime('now'))",
+            [name],
+        )?;
+        tx.commit()?;
+        conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     }
     Ok(())
 }

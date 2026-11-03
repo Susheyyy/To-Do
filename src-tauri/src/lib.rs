@@ -47,6 +47,9 @@ pub fn run() {
             projects::list_projects,
             projects::delete_project,
             projects::create_section,
+            projects::update_project,
+            projects::rename_section,
+            projects::delete_section,
             history::undo,
             history::redo,
         ])

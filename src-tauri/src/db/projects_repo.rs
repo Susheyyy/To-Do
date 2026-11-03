@@ -174,3 +174,48 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Project>) -> AppRe
     }
     Ok(())
 }
+
+
+pub fn update(conn: &Connection, id: &str, name: &str, color: Option<String>) -> AppResult<()> {
+    if name.trim().is_empty() {
+        return Err(AppError::Invalid("project name is required".into()));
+    }
+    let changed = conn.execute(
+        "UPDATE projects SET name = ?2, color = ?3, updated_at = ?4 WHERE id = ?1 AND deleted_at IS NULL",
+        params![id, name.trim(), color, now()],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("project {id}")));
+    }
+    Ok(())
+}
+
+pub fn rename_section(conn: &Connection, id: &str, name: &str) -> AppResult<()> {
+    if name.trim().is_empty() {
+        return Err(AppError::Invalid("section name is required".into()));
+    }
+    let changed = conn.execute(
+        "UPDATE sections SET name = ?2, updated_at = ?3 WHERE id = ?1 AND deleted_at IS NULL",
+        params![id, name.trim(), now()],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("section {id}")));
+    }
+    Ok(())
+}
+
+pub fn delete_section(conn: &Connection, id: &str) -> AppResult<()> {
+    let ts = now();
+    conn.execute(
+        "UPDATE tasks SET section_id = NULL, updated_at = ?2 WHERE section_id = ?1 AND deleted_at IS NULL",
+        params![id, ts],
+    )?;
+    let changed = conn.execute(
+        "UPDATE sections SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NULL",
+        params![id, ts],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("section {id}")));
+    }
+    Ok(())
+}

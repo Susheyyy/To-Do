@@ -38,7 +38,12 @@ interface TasksState {
   toggleSubtask: (taskId: string, subtaskId: string, done: boolean) => Promise<void>;
   createProject: (name: string) => Promise<string>;
   ensureProject: (name: string) => Promise<string>;
+  updateProject: (id: string, name: string, color: string | null) => Promise<void>;
+  deleteProject: (id: string) => Promise<void>;
   createSection: (projectId: string, name: string) => Promise<void>;
+  renameSection: (id: string, name: string) => Promise<void>;
+  deleteSection: (id: string) => Promise<void>;
+  rescheduleOverdue: () => Promise<void>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 }
@@ -74,22 +79,14 @@ export const useTasks = create<TasksState>((set, get) => {
         api.listCompletedBetween(dayStart, dayEnd),
         api.listProjects(),
       ]);
-      set({
-        open,
-        today,
-        overdue,
-        completedToday,
-        projects,
-        version: get().version + 1,
-      });
+      set({ open, today, overdue, completedToday, projects, version: get().version + 1 });
     },
     createTask: (input) => guard(() => api.createTask(input)),
     updateTask: (id, input) => guard(() => api.updateTask(id, input)),
     toggleTask: (task) => guard(() => api.setTaskCompleted(task.id, task.completedAt === null)),
     deleteTask: (id) => guard(() => api.deleteTask(id)),
     addSubtask: (taskId, title) => guard(() => api.addSubtask(taskId, title)),
-    toggleSubtask: (taskId, subtaskId, done) =>
-      guard(() => api.toggleSubtask(taskId, subtaskId, done)),
+    toggleSubtask: (taskId, subtaskId, done) => guard(() => api.toggleSubtask(taskId, subtaskId, done)),
     createProject: async (name) => {
       const created = await api.createProject(name, nextProjectSlot(get().projects.length));
       await get().load();
@@ -100,7 +97,17 @@ export const useTasks = create<TasksState>((set, get) => {
       if (existing) return existing.id;
       return get().createProject(name);
     },
+    updateProject: (id, name, color) => guard(() => api.updateProject(id, name, color)),
+    deleteProject: (id) => guard(() => api.deleteProject(id)),
     createSection: (projectId, name) => guard(() => api.createSection(projectId, name)),
+    renameSection: (id, name) => guard(() => api.renameSection(id, name)),
+    deleteSection: (id) => guard(() => api.deleteSection(id)),
+    rescheduleOverdue: () =>
+      guard(async () => {
+        for (const task of get().overdue) {
+          await api.updateTask(task.id, toInput(task, { dueDate: todayIso() }));
+        }
+      }),
     undo: () => guard(() => api.undo()),
     redo: () => guard(() => api.redo()),
   };

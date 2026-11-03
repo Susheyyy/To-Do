@@ -43,3 +43,22 @@ pub fn create_section(state: State<'_, AppState>, project_id: String, name: Stri
     state.history()?.record("Add section", vec![before]);
     Ok(section)
 }
+
+
+#[tauri::command]
+pub fn update_project(state: State<'_, AppState>, id: String, name: String, color: Option<String>) -> AppResult<()> {
+    let conn = state.conn()?;
+    projects_repo::update(&conn, &id, &name, color)
+}
+
+#[tauri::command]
+pub fn rename_section(state: State<'_, AppState>, id: String, name: String) -> AppResult<()> {
+    let conn = state.conn()?;
+    projects_repo::rename_section(&conn, &id, &name)
+}
+
+#[tauri::command]
+pub fn delete_section(state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let conn = state.conn()?;
+    projects_repo::delete_section(&conn, &id)
+}
