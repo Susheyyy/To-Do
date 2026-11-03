@@ -26,4 +26,5 @@ export const api = {
   deleteSection: (id: string) => invoke<void>("delete_section", { id }),
   undo: () => invoke<string | null>("undo"),
   redo: () => invoke<string | null>("redo"),
+  updateTrayBadge: (count: number) => invoke<void>("update_tray_badge", { count }),
 };

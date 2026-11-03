@@ -6,10 +6,14 @@
     "linux"
   ],
   "windows": [
-    "main"
+    "main",
+    "quick-capture"
   ],
   "permissions": [
     "global-shortcut:default",
-    "autostart:default"
+    "autostart:default",
+    "notification:default",
+    "tray-icon:default",
+    "core:tray:default"
   ]
 }

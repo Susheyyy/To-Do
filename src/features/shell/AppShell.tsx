@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { ConfirmHost } from "../../components/ConfirmHost";
 import { QuickAdd } from "../../components/QuickAdd";
 import { Sidebar } from "../../components/Sidebar";
+import { api } from "../../lib/api";
 import { useTasks } from "../../stores/tasks.store";
 import { ListId, useUi, ViewId } from "../../stores/ui.store";
 import { TaskDetail } from "../detail/TaskDetail";
@@ -25,6 +26,11 @@ export function AppShell() {
   const closeQuickAdd = useUi((s) => s.closeQuickAdd);
   const undo = useTasks((s) => s.undo);
   const redo = useTasks((s) => s.redo);
+  const overdueCount = useTasks((s) => s.overdue.length);
+
+  useEffect(() => {
+    void api.updateTrayBadge(overdueCount);
+  }, [overdueCount]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
