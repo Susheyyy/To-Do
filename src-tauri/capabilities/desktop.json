@@ -13,7 +13,6 @@
     "global-shortcut:default",
     "autostart:default",
     "notification:default",
-    "tray-icon:default",
     "core:tray:default"
   ]
 }

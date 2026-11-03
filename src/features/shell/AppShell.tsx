@@ -4,6 +4,7 @@ import { ConfirmHost } from "../../components/ConfirmHost";
 import { QuickAdd } from "../../components/QuickAdd";
 import { Sidebar } from "../../components/Sidebar";
 import { api } from "../../lib/api";
+import { NotificationManager } from "../../lib/notifications";
 import { useTasks } from "../../stores/tasks.store";
 import { ListId, useUi, ViewId } from "../../stores/ui.store";
 import { TaskDetail } from "../detail/TaskDetail";
@@ -59,6 +60,7 @@ export function AppShell() {
 
   return (
     <div className="shell">
+      <NotificationManager />
       <Sidebar />
       <main className="main">{renderView(view)}</main>
       <TaskDetail />

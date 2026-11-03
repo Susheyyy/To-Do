@@ -22,10 +22,24 @@ use state::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
-            if let Some(win) = app.get_webview_window("main") {
-                let _ = win.show();
-                let _ = win.set_focus();
+        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+            if args.iter().any(|a| a == "--quick" || a == "-q") {
+                if let Some(win) = app.get_webview_window("quick-capture") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            } else {
+                if let Some(win) = app.get_webview_window("quick-capture") {
+                    if !win.is_visible().unwrap_or(false) {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                        return;
+                    }
+                }
+                if let Some(win) = app.get_webview_window("main") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
             }
         }))
         .plugin(tauri_plugin_autostart::init(
@@ -109,7 +123,12 @@ pub fn run() {
                 })?;
 
             let args: Vec<String> = std::env::args().collect();
-            if !args.contains(&"--minimized".to_string()) {
+            if args.iter().any(|a| a == "--quick" || a == "-q") {
+                if let Some(win) = app.get_webview_window("quick-capture") {
+                    let _ = win.show();
+                    let _ = win.set_focus();
+                }
+            } else if !args.contains(&"--minimized".to_string()) {
                 if let Some(win) = app.get_webview_window("main") {
                     let _ = win.show();
                 }

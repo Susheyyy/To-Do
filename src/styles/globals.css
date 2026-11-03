@@ -1647,3 +1647,231 @@ button {
 .toggle-switch.on .toggle-thumb {
   transform: translateX(18px);
 }
+
+.quick-capture-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.quick-capture-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.quick-capture-add {
+  margin-bottom: 10px;
+}
+
+.quick-capture-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.quick-capture-empty {
+  font-size: 13px;
+  color: var(--color-muted);
+  text-align: center;
+  padding: 16px 0;
+}
+
+.snooze-row {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin: 10px 0;
+}
+
+.snooze-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.settings-subrow {
+  display: flex;
+  gap: 12px;
+  padding: 6px 0 10px 12px;
+}
+
+.settings-field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  color: var(--color-muted);
+}
+
+.settings-field input {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 4px 8px;
+  border-radius: 6px;
+  font: inherit;
+}
+
+/* Popup Card for Desktop Shortcut & Quick Capture */
+.popup-card {
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  background: var(--color-surface);
+  border-radius: 20px;
+  border: 1px solid var(--color-border);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.18);
+  display: flex;
+  flex-direction: column;
+  padding: 16px 18px 14px 18px;
+  overflow: hidden;
+}
+
+.popup-topbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.popup-date {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--color-muted);
+  letter-spacing: 0.2px;
+}
+
+.popup-settings-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: var(--color-muted);
+  padding: 4px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: opacity 0.15s ease;
+}
+
+.popup-settings-btn:hover {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.popup-tabs {
+  display: flex;
+  background: var(--color-bg);
+  border-radius: 12px;
+  padding: 3px;
+  gap: 2px;
+  margin-bottom: 14px;
+}
+
+.popup-tab {
+  flex: 1;
+  border: none;
+  background: transparent;
+  padding: 5px 0;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--color-muted);
+  border-radius: 9px;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.popup-tab.active {
+  background: var(--color-surface);
+  color: var(--color-text);
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.popup-task-list {
+  flex: 1;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding-right: 4px;
+}
+
+.popup-group-header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  margin-bottom: 6px;
+}
+
+.popup-bullet {
+  font-size: 14px;
+}
+
+.popup-group-name {
+  text-transform: lowercase;
+}
+
+.popup-group-items {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding-left: 4px;
+}
+
+.popup-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  cursor: pointer;
+  padding: 3px 0;
+}
+
+.popup-checkbox {
+  width: 15px;
+  height: 15px;
+  border-radius: 4px;
+  border: 1.5px solid var(--color-muted);
+  accent-color: var(--color-accent);
+  cursor: pointer;
+}
+
+.popup-item-title {
+  font-size: 13px;
+  color: var(--color-text);
+  transition: opacity 0.15s ease;
+}
+
+.popup-item-title.is-done {
+  text-decoration: line-through;
+  opacity: 0.45;
+}
+
+.popup-empty-msg {
+  text-align: center;
+  color: var(--color-muted);
+  font-size: 12px;
+  margin-top: 30px;
+}
+
+.popup-footer {
+  margin-top: 10px;
+}
+
+.popup-footer .quick-add {
+  margin: 0;
+  border-radius: 12px;
+  padding: 6px 12px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+}
+
+.popup-footer .quick-add input {
+  font-size: 13px;
+}

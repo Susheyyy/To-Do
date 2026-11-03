@@ -1,4 +1,5 @@
 import { FormEvent, useState } from "react";
+import { addDays, addMinutes, format } from "date-fns";
 
 import { Icon } from "../../components/Icon";
 import { toInput, useTasks } from "../../stores/tasks.store";
@@ -116,6 +117,51 @@ function DetailBody({ task, onClose }: { task: Task; onClose: () => void }) {
               onChange={(e) => save({ dueTime: e.target.value || null })}
             />
           </label>
+        </div>
+
+        <div className="snooze-row">
+          <span className="field-label">Snooze</span>
+          <div className="snooze-buttons">
+            <button
+              className="chip"
+              type="button"
+              onClick={() => {
+                const target = addMinutes(new Date(), 10);
+                save({
+                  dueDate: format(target, "yyyy-MM-dd"),
+                  dueTime: format(target, "HH:mm"),
+                });
+              }}
+            >
+              +10 min
+            </button>
+            <button
+              className="chip"
+              type="button"
+              onClick={() => {
+                const target = addMinutes(new Date(), 60);
+                save({
+                  dueDate: format(target, "yyyy-MM-dd"),
+                  dueTime: format(target, "HH:mm"),
+                });
+              }}
+            >
+              +1 hr
+            </button>
+            <button
+              className="chip"
+              type="button"
+              onClick={() => {
+                const target = addDays(new Date(), 1);
+                save({
+                  dueDate: format(target, "yyyy-MM-dd"),
+                  dueTime: "09:00",
+                });
+              }}
+            >
+              Tomorrow 9am
+            </button>
+          </div>
         </div>
 
         <label className="field">

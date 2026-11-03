@@ -23,13 +23,15 @@
       {
         "label": "quick-capture",
         "title": "Quick Capture",
-        "width": 580,
-        "height": 160,
+        "width": 380,
+        "height": 560,
         "resizable": false,
         "decorations": false,
         "alwaysOnTop": true,
         "visible": false,
-        "url": "index.html"
+        "transparent": true,
+        "shadow": true,
+        "url": "index.html?window=quick-capture"
       }
     ],
     "security": {
