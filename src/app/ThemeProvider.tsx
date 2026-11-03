@@ -40,7 +40,19 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
         root.style.setProperty("--font-body", theme.font);
         document.body.dataset.theme = theme.id;
         localStorage.setItem(THEME_KEY, theme.id);
+        window.dispatchEvent(new Event("storage"));
     }, [theme]);
+
+    useEffect(() => {
+        const onStorage = () => {
+            const saved = localStorage.getItem(THEME_KEY) as ThemeId | null;
+            if (saved && saved in themes && saved !== themeId) {
+                setThemeId(saved);
+            }
+        };
+        window.addEventListener("storage", onStorage);
+        return () => window.removeEventListener("storage", onStorage);
+    }, [themeId]);
 
     useEffect(() => {
         localStorage.setItem(MOTION_KEY, motion ? "on" : "off");

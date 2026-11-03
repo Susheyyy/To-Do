@@ -69,14 +69,7 @@ export function ListView({ id }: { id: ListId }) {
   return (
     <div className={`page ${id === "today" && layout === "board" ? "wide" : ""}`}>
       <div className="view-navigation-bar">
-        <div className="history-nav-btns">
-          <button className="icon-btn small nav-chevron" aria-label="Back">
-            <Icon name="chevronLeft" size={14} />
-          </button>
-          <button className="icon-btn small nav-chevron" aria-label="Forward">
-            <Icon name="chevronRight" size={14} />
-          </button>
-        </div>
+        <div />
         <div className="header-tools">
           <DisplayMenu
             showCompletedToggle={id === "today"}

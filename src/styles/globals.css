@@ -509,7 +509,8 @@ button {
 }
 
 .page.wide {
-  max-width: 1100px;
+  max-width: 100%;
+  padding-right: 8px;
 }
 
 .progress {
@@ -532,6 +533,21 @@ button {
   gap: 16px;
   overflow-x: auto;
   padding-bottom: 8px;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+}
+
+.board::-webkit-scrollbar {
+  display: none;
+}
+
+.grab-scroll {
+  cursor: grab;
+  user-select: none;
+}
+
+.grab-scroll:active {
+  cursor: grabbing;
 }
 
 .board-col {
@@ -1110,7 +1126,7 @@ button {
 .view-navigation-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
+  justify-content: flex-end;
   margin-bottom: 8px;
 }
 
@@ -1766,29 +1782,36 @@ button {
 .popup-tabs {
   display: flex;
   background: var(--color-bg);
-  border-radius: 12px;
+  border-radius: 999px;
   padding: 3px;
   gap: 2px;
   margin-bottom: 14px;
+  border: 1px solid var(--color-border);
 }
 
 .popup-tab {
   flex: 1;
   border: none;
   background: transparent;
-  padding: 5px 0;
+  padding: 6px 0;
+  font: inherit;
   font-size: 12px;
   font-weight: 500;
   color: var(--color-muted);
-  border-radius: 9px;
+  border-radius: 999px;
   cursor: pointer;
   transition: all 0.15s ease;
 }
 
-.popup-tab.active {
-  background: var(--color-surface);
+.popup-tab:hover {
   color: var(--color-text);
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
+}
+
+.popup-tab.active {
+  background: var(--color-accent);
+  color: var(--color-accentText);
+  font-weight: 600;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
 }
 
 .popup-task-list {
@@ -1861,17 +1884,136 @@ button {
 }
 
 .popup-footer {
-  margin-top: 10px;
+  margin-top: 12px;
+  padding-top: 8px;
+  border-top: 1px solid var(--color-border);
 }
 
-.popup-footer .quick-add {
-  margin: 0;
-  border-radius: 12px;
-  padding: 6px 12px;
+.quick-add-clean {
+  background: transparent;
+  border: none;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.quick-add-clean .quick-add-row input {
+  width: 100%;
+  background: transparent;
+  border: none;
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--color-text);
+  outline: none;
+  padding: 4px 0;
+}
+
+.quick-add-clean .quick-add-row input::placeholder {
+  color: var(--color-muted);
+}
+
+.quick-add-clean .preview {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.quick-add-clean .pill {
+  font-size: 11px;
   background: var(--color-bg);
   border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
-.popup-footer .quick-add input {
-  font-size: 13px;
+
+/* Floating Capsule Bar (Ctrl+Alt+Space Global Quick Add) */
+.floating-bar-container {
+  width: 100vw;
+  height: 100vh;
+  box-sizing: border-box;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  padding: 6px;
+}
+
+.floating-bar-capsule {
+  width: 100%;
+  height: 100%;
+  background: var(--color-surface);
+  border-radius: 16px;
+  border: 1.5px solid var(--color-accent);
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  padding: 0 10px 0 12px;
+  gap: 12px;
+}
+
+.floating-bar-add-icon {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.floating-bar-input {
+  flex: 1;
+  background: transparent;
+  border: none;
+  outline: none;
+  font-family: inherit;
+  font-size: 15px;
+  color: var(--color-text);
+}
+
+.floating-bar-input::placeholder {
+  color: var(--color-muted);
+}
+
+.floating-bar-clear-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.floating-bar-clear-btn:hover {
+  color: var(--color-text);
+}
+
+.floating-bar-close-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.floating-bar-close-btn:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
 }

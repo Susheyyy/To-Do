@@ -13,7 +13,7 @@ use tauri::{
     Manager,
 };
 use tauri_plugin_autostart::MacosLauncher;
-use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut};
+use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 use commands::{history, projects, tasks, tray};
 use services::history::History;
@@ -22,24 +22,10 @@ use state::AppState;
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     tauri::Builder::default()
-        .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
-            if args.iter().any(|a| a == "--quick" || a == "-q") {
-                if let Some(win) = app.get_webview_window("quick-capture") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                }
-            } else {
-                if let Some(win) = app.get_webview_window("quick-capture") {
-                    if !win.is_visible().unwrap_or(false) {
-                        let _ = win.show();
-                        let _ = win.set_focus();
-                        return;
-                    }
-                }
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                    let _ = win.set_focus();
-                }
+        .plugin(tauri_plugin_single_instance::init(|app, _args, _cwd| {
+            if let Some(win) = app.get_webview_window("quick-capture") {
+                let _ = win.show();
+                let _ = win.set_focus();
             }
         }))
         .plugin(tauri_plugin_autostart::init(
@@ -111,13 +97,15 @@ pub fn run() {
             let shortcut =
                 Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space);
             app.global_shortcut()
-                .on_shortcut(shortcut, |app, _shortcut, _event| {
-                    if let Some(win) = app.get_webview_window("quick-capture") {
-                        if win.is_visible().unwrap_or(false) {
-                            let _ = win.hide();
-                        } else {
-                            let _ = win.show();
-                            let _ = win.set_focus();
+                .on_shortcut(shortcut, |app, _shortcut, event| {
+                    if event.state() == ShortcutState::Pressed {
+                        if let Some(win) = app.get_webview_window("floating-bar") {
+                            if win.is_visible().unwrap_or(false) {
+                                let _ = win.hide();
+                            } else {
+                                let _ = win.show();
+                                let _ = win.set_focus();
+                            }
                         }
                     }
                 })?;

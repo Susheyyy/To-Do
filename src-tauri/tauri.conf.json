@@ -32,6 +32,19 @@
         "transparent": true,
         "shadow": true,
         "url": "index.html?window=quick-capture"
+      },
+      {
+        "label": "floating-bar",
+        "title": "Quick Add",
+        "width": 560,
+        "height": 62,
+        "resizable": false,
+        "decorations": false,
+        "alwaysOnTop": true,
+        "visible": false,
+        "transparent": true,
+        "shadow": true,
+        "url": "index.html?window=floating-bar"
       }
     ],
     "security": {

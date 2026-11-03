@@ -12,6 +12,7 @@ interface Props {
   sectionId?: string | null;
   autoFocus?: boolean;
   placeholder?: string;
+  variant?: "card" | "clean";
   onDone?: () => void;
 }
 
@@ -21,6 +22,7 @@ export function QuickAdd({
   sectionId = null,
   autoFocus = false,
   placeholder = "Add task",
+  variant = "card",
   onDone,
 }: Props) {
   const clock = useSettings((s) => s.clock);
@@ -68,8 +70,10 @@ export function QuickAdd({
     onDone?.();
   }
 
+  const isClean = variant === "clean";
+
   return (
-    <form className="card quick-add" onSubmit={submit}>
+    <form className={isClean ? "quick-add-clean" : "card quick-add"} onSubmit={submit}>
       <div className="quick-add-row">
         <input
           ref={inputRef}

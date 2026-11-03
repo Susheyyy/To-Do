@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import { AddInline } from "./AddInline";
 import { TaskRow } from "../features/today/TaskRow";
 import { Layout, useUi } from "../stores/ui.store";
@@ -13,8 +14,51 @@ export interface Column {
 }
 
 export function Board({ columns }: { columns: Column[] }) {
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
+    const target = e.target as HTMLElement;
+    if (
+      target.closest("button") ||
+      target.closest("input") ||
+      target.closest("textarea") ||
+      target.closest(".task-row") ||
+      target.closest(".check-btn")
+    ) {
+      return;
+    }
+
+    const container = containerRef.current;
+    if (!container) return;
+
+    let startX = e.pageX - container.offsetLeft;
+    let scrollLeft = container.scrollLeft;
+    let isDown = true;
+
+    function onMouseMove(ev: MouseEvent) {
+      if (!isDown || !container) return;
+      ev.preventDefault();
+      const x = ev.pageX - container.offsetLeft;
+      const walk = (x - startX) * 1.5;
+      container.scrollLeft = scrollLeft - walk;
+    }
+
+    function onMouseUp() {
+      isDown = false;
+      window.removeEventListener("mousemove", onMouseMove);
+      window.removeEventListener("mouseup", onMouseUp);
+    }
+
+    window.addEventListener("mousemove", onMouseMove);
+    window.addEventListener("mouseup", onMouseUp);
+  }
+
   return (
-    <div className="board">
+    <div
+      ref={containerRef}
+      className="board grab-scroll"
+      onMouseDown={handleMouseDown}
+    >
       {columns.map((col) => (
         <div key={col.key} className="board-col">
           <div className="board-col-header">
@@ -48,7 +92,12 @@ export function LayoutSwitch() {
   return (
     <div className="theme-chips">
       {options.map((o) => (
-        <button key={o.id} className="chip" aria-pressed={layout === o.id} onClick={() => setLayout(o.id)}>
+        <button
+          key={o.id}
+          className="chip"
+          aria-pressed={layout === o.id}
+          onClick={() => setLayout(o.id)}
+        >
           {o.label}
         </button>
       ))}

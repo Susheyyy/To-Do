@@ -6,15 +6,12 @@ import { QuickAdd } from "../../components/QuickAdd";
 import { useTasks } from "../../stores/tasks.store";
 import type { Task } from "../../types/models";
 
-type Tab = "todo" | "pending" | "completed" | "cancelled";
+type Tab = "pending" | "completed";
 
 export function QuickCaptureWindow() {
-  const [tab, setTab] = useState<Tab>("todo");
-  const todayTasks = useTasks((s) => s.today);
-  const overdueTasks = useTasks((s) => s.overdue);
+  const [tab, setTab] = useState<Tab>("pending");
   const openTasks = useTasks((s) => s.open);
   const completedToday = useTasks((s) => s.completedToday);
-  const projects = useTasks((s) => s.projects);
   const toggleTask = useTasks((s) => s.toggleTask);
   const load = useTasks((s) => s.load);
 
@@ -36,48 +33,9 @@ export function QuickCaptureWindow() {
     };
   }, []);
 
-  async function openMainWindow() {
-    try {
-      const { WebviewWindow } = await import("@tauri-apps/api/webviewWindow");
-      const main = await WebviewWindow.getByLabel("main");
-      if (main) {
-        await main.show();
-        await main.setFocus();
-      }
-    } catch {}
-  }
-
   const currentDateHeader = format(new Date(), "MMMM d, EEEE");
 
-  let filteredTasks: Task[] = [];
-  if (tab === "todo") {
-    filteredTasks = [...overdueTasks, ...todayTasks];
-  } else if (tab === "pending") {
-    filteredTasks = openTasks;
-  } else if (tab === "completed") {
-    filteredTasks = completedToday;
-  } else {
-    filteredTasks = [];
-  }
-
-  const grouped = new Map<string, Task[]>();
-  grouped.set("No Project", []);
-  for (const p of projects) {
-    grouped.set(p.name, []);
-  }
-
-  for (const t of filteredTasks) {
-    if (!t.projectId) {
-      grouped.get("No Project")?.push(t);
-    } else {
-      const p = projects.find((proj) => proj.id === t.projectId);
-      const name = p ? p.name : "No Project";
-      if (!grouped.has(name)) grouped.set(name, []);
-      grouped.get(name)?.push(t);
-    }
-  }
-
-  const nonZeroGroups = Array.from(grouped.entries()).filter(([_, items]) => items.length > 0);
+  const filteredTasks: Task[] = tab === "pending" ? openTasks : completedToday;
 
   return (
     <div className="popup-card">
@@ -85,21 +43,15 @@ export function QuickCaptureWindow() {
         <span className="popup-date">{currentDateHeader}</span>
         <button
           className="popup-settings-btn"
-          onClick={openMainWindow}
-          title="Open To-Do"
-          aria-label="Open main app"
+          onClick={() => void getCurrentWindow().hide()}
+          title="Close"
+          aria-label="Close"
         >
-          <Icon name="gear" size={14} />
+          <Icon name="close" size={14} />
         </button>
       </div>
 
       <div className="popup-tabs">
-        <button
-          className={`popup-tab ${tab === "todo" ? "active" : ""}`}
-          onClick={() => setTab("todo")}
-        >
-          To-do
-        </button>
         <button
           className={`popup-tab ${tab === "pending" ? "active" : ""}`}
           onClick={() => setTab("pending")}
@@ -112,46 +64,30 @@ export function QuickCaptureWindow() {
         >
           Completed
         </button>
-        <button
-          className={`popup-tab ${tab === "cancelled" ? "active" : ""}`}
-          onClick={() => setTab("cancelled")}
-        >
-          Cancelled
-        </button>
       </div>
 
       <div className="popup-task-list">
-        {nonZeroGroups.length === 0 ? (
+        {filteredTasks.length === 0 ? (
           <div className="popup-empty-msg">No tasks here</div>
         ) : (
-          nonZeroGroups.map(([groupName, tasks]) => (
-            <div key={groupName} className="popup-group">
-              {groupName !== "No Project" && (
-                <div className="popup-group-header">
-                  <span className="popup-bullet">•</span>
-                  <span className="popup-group-name">{groupName}</span>
-                </div>
-              )}
-              <div className="popup-group-items">
-                {tasks.map((task) => {
-                  const isDone = task.completedAt !== null;
-                  return (
-                    <label key={task.id} className="popup-item">
-                      <input
-                        type="checkbox"
-                        className="popup-checkbox"
-                        checked={isDone}
-                        onChange={() => void toggleTask(task)}
-                      />
-                      <span className={`popup-item-title ${isDone ? "is-done" : ""}`}>
-                        {task.title}
-                      </span>
-                    </label>
-                  );
-                })}
-              </div>
-            </div>
-          ))
+          <div className="popup-group-items">
+            {filteredTasks.map((task) => {
+              const isDone = task.completedAt !== null;
+              return (
+                <label key={task.id} className="popup-item">
+                  <input
+                    type="checkbox"
+                    className="popup-checkbox"
+                    checked={isDone}
+                    onChange={() => void toggleTask(task)}
+                  />
+                  <span className={`popup-item-title ${isDone ? "is-done" : ""}`}>
+                    {task.title}
+                  </span>
+                </label>
+              );
+            })}
+          </div>
         )}
       </div>
 
@@ -160,6 +96,7 @@ export function QuickCaptureWindow() {
           defaultDue={null}
           defaultProjectId={null}
           placeholder="Add new todo"
+          variant="clean"
           autoFocus={false}
           onDone={() => void load()}
         />
