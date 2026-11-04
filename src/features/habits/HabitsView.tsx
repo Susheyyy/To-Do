@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { addDays, format, parseISO, subDays } from "date-fns";
+import { format, parseISO, subDays } from "date-fns";
 import { Icon } from "../../components/Icon";
 import { useHabits } from "../../stores/habits.store";
 import type { Habit, HabitFrequency, HabitInput } from "../../types/models";
@@ -116,8 +116,6 @@ export function HabitsView() {
     void loadLogs(start, end);
   }
 
-  const weekLabels = grid.filter((_, i) => i % 7 === 0 || i === grid.length - 1);
-
   return (
     <div className="page">
       <header className="page-header">
@@ -130,20 +128,24 @@ export function HabitsView() {
       </header>
 
       {adding && (
-        <div className="habit-form-card">
-          <input
-            className="habit-form-input"
-            autoFocus
-            placeholder="Habit name"
-            value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") void submitForm();
-              if (e.key === "Escape") { setAdding(false); setEditing(null); }
-            }}
-          />
-          <div className="habit-form-row">
-            <span className="habit-form-label">Frequency</span>
+        <div className="habit-form-card card">
+          <div className="habit-field-group">
+            <label className="habit-field-label">Habit Name</label>
+            <input
+              className="habit-form-input"
+              autoFocus
+              placeholder="e.g. Morning Yoga, Read 10 pages..."
+              value={form.name}
+              onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") void submitForm();
+                if (e.key === "Escape") { setAdding(false); setEditing(null); }
+              }}
+            />
+          </div>
+
+          <div className="habit-field-group">
+            <label className="habit-field-label">Frequency</label>
             <select
               className="habit-form-select"
               value={form.frequency}
@@ -154,11 +156,13 @@ export function HabitsView() {
               ))}
             </select>
           </div>
-          <div className="habit-form-row">
-            <span className="habit-form-label">Color</span>
+
+          <div className="habit-field-group">
+            <label className="habit-field-label">Color Badge</label>
             <div className="habit-color-row">
               {HABIT_COLORS.map((c) => (
                 <button
+                  type="button"
                   key={c}
                   className={`habit-color-dot${form.color === c ? " selected" : ""}`}
                   style={{ background: c }}
@@ -168,15 +172,17 @@ export function HabitsView() {
               ))}
             </div>
           </div>
+
           <div className="habit-form-actions">
-            <button className="chip" onClick={() => void submitForm()}>
-              {editing ? "Save" : "Add habit"}
+            <button type="button" className="chip primary" onClick={() => void submitForm()}>
+              {editing ? "Save Changes" : "Add Habit"}
             </button>
-            <button className="chip muted" onClick={() => { setAdding(false); setEditing(null); }}>
+            <button type="button" className="chip muted" onClick={() => { setAdding(false); setEditing(null); }}>
               Cancel
             </button>
             {editing && (
               <button
+                type="button"
                 className="chip danger-chip"
                 onClick={() => { void deleteHabit(editing.id); setAdding(false); setEditing(null); }}
               >

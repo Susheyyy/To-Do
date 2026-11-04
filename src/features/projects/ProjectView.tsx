@@ -54,23 +54,16 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const doneTasks = tasks.filter((t) => t.completedAt !== null);
 
   const groups = [
-    ...(openTasks.some((t) => !t.sectionId) || project.sections.length > 0
+    ...(openTasks.some((t) => !t.sectionId)
       ? [
           {
             key: "none",
             sectionId: null as string | null,
-            title: project.sections.length > 0 ? "Tasks" : "",
+            title: "",
             tasks: sortTasks(openTasks.filter((t) => !t.sectionId), sort),
           },
         ]
-      : [
-          {
-            key: "none",
-            sectionId: null as string | null,
-            title: "",
-            tasks: sortTasks(openTasks, sort),
-          },
-        ]),
+      : []),
     ...project.sections.map((s) => ({
       key: s.id,
       sectionId: s.id as string | null,
@@ -117,6 +110,11 @@ export function ProjectView({ projectId }: { projectId: string }) {
         </div>
       ) : (
         <div style={{ marginTop: 16 }}>
+          {groups.length === 0 && (
+            <section className="group">
+              <AddInline due={null} projectId={projectId} sectionId={null} />
+            </section>
+          )}
           {groups.map((g) => (
             <section key={g.key} className="group">
               {g.title ? (

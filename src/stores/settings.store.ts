@@ -6,6 +6,8 @@ export type ClockFormat = "12h" | "24h";
 interface SettingsState {
   clock: ClockFormat;
   setClock: (clock: ClockFormat) => void;
+  dailyGoal: number;
+  setDailyGoal: (goal: number) => void;
   notificationsEnabled: boolean;
   setNotificationsEnabled: (enabled: boolean) => void;
   quietHoursEnabled: boolean;
@@ -25,6 +27,8 @@ export const useSettings = create<SettingsState>()(
     (set) => ({
       clock: "12h",
       setClock: (clock) => set({ clock }),
+      dailyGoal: 5,
+      setDailyGoal: (dailyGoal) => set({ dailyGoal }),
       notificationsEnabled: true,
       setNotificationsEnabled: (notificationsEnabled) => set({ notificationsEnabled }),
       quietHoursEnabled: false,

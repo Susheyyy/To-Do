@@ -2085,3 +2085,591 @@ button {
   background: var(--color-bg);
   color: var(--color-text);
 }
+
+
+/* Calendar View & Time Blocking */
+.cal-nav-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-month-title {
+  font-size: 16px;
+  font-weight: 600;
+  color: var(--color-text);
+  min-width: 140px;
+  text-align: center;
+}
+
+.cal-view-toggles {
+  display: flex;
+  gap: 8px;
+}
+
+.chip.active {
+  background: var(--color-accent);
+  color: var(--color-accentText);
+  font-weight: 600;
+}
+
+.cal-month-grid-container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cal-month-weekdays-header {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 4px;
+  padding: 0 4px;
+  margin-bottom: 4px;
+}
+
+.cal-weekday-title {
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  text-transform: uppercase;
+}
+
+.cal-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.cal-month-cell {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  min-height: 90px;
+  padding: 8px;
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.cal-month-cell:hover {
+  border-color: var(--color-accent);
+  transform: translateY(-1px);
+}
+
+.cal-month-cell.other-month {
+  opacity: 0.4;
+  background: transparent;
+}
+
+.cal-month-cell.selected-day {
+  border: 2px solid var(--color-accent);
+  background: var(--color-bg);
+}
+
+.cal-month-cell.today-cell {
+  font-weight: bold;
+}
+
+.cal-cell-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13px;
+  margin-bottom: 4px;
+}
+
+.cal-cell-day-num {
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.today-num-badge {
+  background: var(--color-accent);
+  color: var(--color-accentText);
+  padding: 1px 6px;
+  border-radius: 999px;
+  font-size: 11px;
+}
+
+.cal-cell-task-count {
+  font-size: 11px;
+  color: var(--color-muted);
+}
+
+.cal-cell-task-preview {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  overflow: hidden;
+}
+
+.cal-cell-chip {
+  font-size: 11px;
+  background: var(--color-bg);
+  border-left: 3px solid var(--color-accent);
+  border-radius: 4px;
+  padding: 2px 4px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: flex;
+  gap: 4px;
+}
+
+.cal-cell-chip .chip-time {
+  font-weight: 600;
+  color: var(--color-muted);
+}
+
+.cal-cell-chip .chip-title {
+  color: var(--color-text);
+}
+
+.cal-cell-more {
+  font-size: 10px;
+  color: var(--color-muted);
+  text-align: center;
+}
+
+.cal-selected-agenda {
+  padding: 16px;
+}
+
+.cal-agenda-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.cal-agenda-header h3 {
+  margin: 0;
+  font-size: 15px;
+}
+
+.cal-agenda-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.cal-agenda-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 12px;
+  background: var(--color-bg);
+  border-radius: 8px;
+  cursor: pointer;
+  transition: background 0.15s ease;
+}
+
+.cal-agenda-item:hover {
+  filter: brightness(0.97);
+}
+
+.priority-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+}
+
+.cal-agenda-time {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  min-width: 60px;
+}
+
+.cal-agenda-title {
+  font-size: 13.5px;
+  color: var(--color-text);
+}
+
+/* Time Blocking Day Scheduler (Google Calendar Style) */
+.cal-day-scheduler {
+  padding: 18px;
+}
+
+.cal-day-header-bar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+  padding-bottom: 12px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.cal-day-header-bar h2 {
+  margin: 0 0 4px;
+  font-size: 18px;
+}
+
+.cal-day-time-grid {
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  background: var(--color-surface);
+  overflow: hidden;
+}
+
+.cal-day-hour-row {
+  display: flex;
+  min-height: 52px;
+  border-bottom: 1px solid var(--color-border);
+  cursor: pointer;
+  transition: background 0.1s ease;
+}
+
+.cal-day-hour-row:last-child {
+  border-bottom: none;
+}
+
+.cal-day-hour-row:hover {
+  background: rgba(0, 0, 0, 0.02);
+}
+
+.cal-hour-tag {
+  width: 70px;
+  padding: 8px 12px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--color-muted);
+  border-right: 1px solid var(--color-border);
+  display: flex;
+  align-items: flex-start;
+  justify-content: flex-end;
+  user-select: none;
+}
+
+.cal-hour-content {
+  flex: 1;
+  padding: 4px 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  justify-content: center;
+}
+
+.cal-scheduled-block {
+  background: var(--color-bg);
+  border-left: 4px solid var(--color-accent);
+  border-radius: 6px;
+  padding: 6px 10px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.05);
+}
+
+.cal-scheduled-block .time-badge {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--color-text);
+  background: var(--color-border);
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.cal-scheduled-block .title-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+}
+
+.cal-scheduled-block .notes-text {
+  font-size: 12px;
+  color: var(--color-muted);
+  margin-left: auto;
+}
+
+.cal-empty-slot-hint {
+  font-size: 12px;
+  color: var(--color-muted);
+  opacity: 0;
+  transition: opacity 0.15s ease;
+}
+
+.cal-day-hour-row:hover .cal-empty-slot-hint {
+  opacity: 0.8;
+}
+
+/* Habits Grid Styles */
+.habit-form-card {
+  max-width: 520px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 20px 24px;
+  margin-bottom: 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.04);
+}
+
+.habit-field-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.habit-field-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--color-text);
+  opacity: 0.85;
+}
+
+.habit-form-input {
+  width: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  border-radius: 10px;
+  padding: 10px 14px;
+  font: inherit;
+  font-size: 14.5px;
+  color: var(--color-text);
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.habit-form-input:focus {
+  border-color: var(--color-accent);
+}
+
+.habit-form-select {
+  width: 100%;
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 10px 14px;
+  border-radius: 10px;
+  font: inherit;
+  font-size: 14px;
+  outline: none;
+  cursor: pointer;
+}
+
+.habit-color-row {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  padding: 4px 0;
+}
+
+.habit-color-dot {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform 0.15s ease, border-color 0.15s ease;
+}
+
+.habit-color-dot:hover {
+  transform: scale(1.15);
+}
+
+.habit-color-dot.selected {
+  border-color: var(--color-text);
+  transform: scale(1.15);
+  box-shadow: 0 0 0 2px var(--color-surface);
+}
+
+.habit-form-actions {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+  padding-top: 12px;
+  border-top: 1px solid var(--color-border);
+}
+
+.habit-grid-wrap {
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 12px;
+  padding: 16px;
+  overflow-x: auto;
+}
+
+.habit-grid-header {
+  display: flex;
+  align-items: center;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.habit-grid-name-col {
+  width: 180px;
+  flex-shrink: 0;
+}
+
+.habit-grid-days {
+  display: flex;
+  gap: 4px;
+}
+
+.habit-day-label {
+  width: 24px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--color-muted);
+}
+
+.habit-day-label.today {
+  color: var(--color-text);
+  font-weight: 700;
+}
+
+.habit-streak-col {
+  width: 60px;
+  text-align: right;
+  flex-shrink: 0;
+  padding-right: 8px;
+}
+
+.habit-row {
+  display: flex;
+  align-items: center;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.habit-name-cell {
+  width: 180px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  text-align: left;
+  padding: 0;
+}
+
+.habit-dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.habit-name-text {
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--color-text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.habit-freq {
+  font-size: 10px;
+  color: var(--color-muted);
+  margin-left: auto;
+}
+
+.habit-cell {
+  width: 24px;
+  height: 24px;
+  border-radius: 4px;
+  border: 1px solid var(--color-border);
+  background: var(--color-bg);
+  cursor: pointer;
+  transition: transform 0.1s ease;
+}
+
+.habit-cell:hover:not(:disabled) {
+  transform: scale(1.15);
+}
+
+.habit-cell.future {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.habit-streak {
+  font-size: 12px;
+  font-weight: 700;
+}
+
+
+/* User Profile Daily Progress Popup */
+.user-profile-popup {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  width: 250px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius);
+  padding: 14px 16px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  z-index: 999;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.profile-popup-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.profile-popup-title {
+  font-size: 13.5px;
+  font-weight: 700;
+  color: var(--color-text);
+}
+
+.profile-popup-badge {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--color-accentText);
+  background: var(--color-accent);
+  padding: 2px 7px;
+  border-radius: 999px;
+}
+
+.profile-popup-progress-track {
+  width: 100%;
+  height: 8px;
+  background: var(--color-bg);
+  border-radius: 999px;
+  overflow: hidden;
+  border: 1px solid var(--color-border);
+}
+
+.profile-popup-progress-fill {
+  height: 100%;
+  background: var(--color-accent);
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+
+.profile-popup-sub {
+  font-size: 12px;
+  color: var(--color-muted);
+  line-height: 1.4;
+}
+
+.profile-popup-settings-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-text);
+  font-size: 12px;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+  padding: 4px 0 0;
+  text-align: left;
+}
+
+.profile-popup-settings-btn:hover {
+  opacity: 0.8;
+}

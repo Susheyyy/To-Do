@@ -7,6 +7,8 @@ import { useSettings } from "../../stores/settings.store";
 export function SettingsView() {
   const clock = useSettings((s) => s.clock);
   const setClock = useSettings((s) => s.setClock);
+  const dailyGoal = useSettings((s) => s.dailyGoal);
+  const setDailyGoal = useSettings((s) => s.setDailyGoal);
   const notificationsEnabled = useSettings((s) => s.notificationsEnabled);
   const setNotificationsEnabled = useSettings((s) => s.setNotificationsEnabled);
   const quietHoursEnabled = useSettings((s) => s.quietHoursEnabled);
@@ -41,6 +43,25 @@ export function SettingsView() {
       <section className="card settings-group">
         <h2 className="group-title">Appearance</h2>
         <ThemePicker />
+      </section>
+
+      <section className="card settings-group">
+        <h2 className="group-title">Daily Goal</h2>
+        <div className="settings-row">
+          <span className="settings-label">Target tasks completed per day</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <input
+              type="number"
+              min={1}
+              max={100}
+              className="subtask-input"
+              style={{ width: 70, textAlign: "center", padding: "6px 8px" }}
+              value={dailyGoal}
+              onChange={(e) => setDailyGoal(Math.max(1, parseInt(e.target.value) || 1))}
+            />
+            <span className="muted" style={{ fontSize: 13 }}>tasks</span>
+          </div>
+        </div>
       </section>
 
       <section className="card settings-group">

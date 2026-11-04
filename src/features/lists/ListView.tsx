@@ -12,11 +12,13 @@ import { todayIso, useTasks } from "../../stores/tasks.store";
 import { ListId, useUi } from "../../stores/ui.store";
 import type { Priority, Task } from "../../types/models";
 
-const TITLES: Record<ListId, string> = {
+const TITLES: Partial<Record<ListId, string>> = {
   inbox: "Inbox",
   today: "Today",
   upcoming: "Upcoming",
   filters: "Filters & Labels",
+  habits: "Habits",
+  calendar: "Calendar",
 };
 
 const PRIORITY_COLUMNS: { key: Priority; title: string }[] = [

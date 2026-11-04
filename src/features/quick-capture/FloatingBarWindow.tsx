@@ -8,8 +8,8 @@ import { useTasks } from "../../stores/tasks.store";
 
 declare global {
   interface Window {
-    SpeechRecognition: typeof SpeechRecognition;
-    webkitSpeechRecognition: typeof SpeechRecognition;
+    SpeechRecognition: any;
+    webkitSpeechRecognition: any;
   }
 }
 
@@ -20,7 +20,7 @@ export function FloatingBarWindow() {
   const createTask = useTasks((s) => s.createTask);
   const ensureProject = useTasks((s) => s.ensureProject);
   const parsed = useMemo(() => parseTask(text), [text]);
-  const recognizerRef = useRef<SpeechRecognition | null>(null);
+  const recognizerRef = useRef<any>(null);
 
   async function close() {
     setText("");
@@ -75,7 +75,7 @@ export function FloatingBarWindow() {
     recognizer.onstart = () => setListening(true);
     recognizer.onend = () => setListening(false);
     recognizer.onerror = () => setListening(false);
-    recognizer.onresult = (e) => {
+    recognizer.onresult = (e: any) => {
       const transcript = e.results[0]?.[0]?.transcript ?? "";
       if (transcript) setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
     };

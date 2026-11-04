@@ -1,7 +1,8 @@
-import { FormEvent, useState } from "react";
+import { FormEvent, useEffect, useRef, useState } from "react";
 
 import { useTheme } from "../app/ThemeProvider";
 import { projectColor } from "../lib/projectColors";
+import { useSettings } from "../stores/settings.store";
 import { useTasks } from "../stores/tasks.store";
 import { ListId, useUi } from "../stores/ui.store";
 import { Icon } from "./Icon";
@@ -29,8 +30,25 @@ export function Sidebar() {
   const projects = useTasks((s) => s.projects);
   const createProject = useTasks((s) => s.createProject);
 
+  const completedToday = useTasks((s) => s.completedToday);
+  const dailyGoal = useSettings((s) => s.dailyGoal);
+  const [profileOpen, setProfileOpen] = useState(false);
+  const profileRef = useRef<HTMLDivElement>(null);
+
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (profileRef.current && !profileRef.current.contains(e.target as Node)) {
+        setProfileOpen(false);
+      }
+    }
+    if (profileOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [profileOpen]);
 
   const counts: Record<string, number> = {
     search: 0,
@@ -53,7 +71,13 @@ export function Sidebar() {
   return (
     <aside className="sidebar">
       <div className="sidebar-top">
-        <div className="user-profile">
+        <div
+          ref={profileRef}
+          className="user-profile popover-anchor"
+          style={{ position: "relative" }}
+          onClick={() => setProfileOpen((o) => !o)}
+          title="View daily goal progress"
+        >
           <div className="avatar-circle">
             <Mascot size={22} />
           </div>
@@ -61,6 +85,42 @@ export function Sidebar() {
           <span className="user-chevron">
             <Icon name="chevron" size={12} />
           </span>
+
+          {profileOpen && (
+            <div
+              className="user-profile-popup card"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="profile-popup-header">
+                <span className="profile-popup-title">Daily Progress</span>
+                <span className="profile-popup-badge">
+                  {completedToday.length}/{dailyGoal} completed
+                </span>
+              </div>
+              <div className="profile-popup-progress-track">
+                <div
+                  className="profile-popup-progress-fill"
+                  style={{
+                    width: `${Math.min(100, Math.round((completedToday.length / dailyGoal) * 100))}%`,
+                  }}
+                />
+              </div>
+              <div className="profile-popup-sub">
+                {completedToday.length >= dailyGoal
+                  ? "🎉 Daily target reached! Great job!"
+                  : `${dailyGoal - completedToday.length} more task${dailyGoal - completedToday.length === 1 ? "" : "s"} to reach today's goal.`}
+              </div>
+              <button
+                className="profile-popup-settings-btn"
+                onClick={() => {
+                  setProfileOpen(false);
+                  setView("settings");
+                }}
+              >
+                Change goal in Settings
+              </button>
+            </div>
+          )}
         </div>
         <div className="sidebar-top-actions">
           <button className="icon-btn small" aria-label="Notifications" title="Notifications">
