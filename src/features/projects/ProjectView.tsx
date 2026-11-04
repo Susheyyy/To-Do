@@ -106,7 +106,28 @@ export function ProjectView({ projectId }: { projectId: string }) {
       {layout === "board" ? (
         <div style={{ marginTop: 16 }}>
           <QuickAdd defaultDue={null} defaultProjectId={projectId} placeholder={`Add a task to ${project.name}`} />
-          <Board columns={groups.map((g) => ({ key: g.key, title: g.title, tasks: g.tasks }))} />
+          <Board
+            columns={groups.map((g) => ({
+              key: g.key,
+              title: g.title,
+              tasks: g.tasks,
+              projectId,
+              sectionId: g.sectionId,
+            }))}
+            extraColumn={
+              <div className="board-col board-add-section-col">
+                <form className="section-add-board" onSubmit={submitSection}>
+                  <input
+                    className="subtask-input"
+                    value={sectionName}
+                    onChange={(e) => setSectionName(e.target.value)}
+                    placeholder="+ Add section"
+                    aria-label="New section"
+                  />
+                </form>
+              </div>
+            }
+          />
         </div>
       ) : (
         <div style={{ marginTop: 16 }}>
@@ -155,15 +176,17 @@ export function ProjectView({ projectId }: { projectId: string }) {
         </div>
       )}
 
-      <form className="section-add" onSubmit={submitSection}>
-        <input
-          className="subtask-input"
-          value={sectionName}
-          onChange={(e) => setSectionName(e.target.value)}
-          placeholder="Add section"
-          aria-label="New section"
-        />
-      </form>
+      {layout !== "board" && (
+        <form className="section-add" onSubmit={submitSection}>
+          <input
+            className="subtask-input"
+            value={sectionName}
+            onChange={(e) => setSectionName(e.target.value)}
+            placeholder="Add section"
+            aria-label="New section"
+          />
+        </form>
+      )}
     </div>
   );
 }

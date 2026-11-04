@@ -110,7 +110,7 @@ export function CalendarView() {
               className={`chip ${viewMode === "day" ? "active" : ""}`}
               onClick={() => setViewMode("day")}
             >
-              Day View (Time Blocking)
+              Day View
             </button>
           </div>
         </div>
@@ -227,7 +227,7 @@ export function CalendarView() {
             <div>
               <h2>{format(parseISO(selectedDate), "EEEE, MMMM d, yyyy")}</h2>
               <span className="muted" style={{ fontSize: 13 }}>
-                Click any time slot below to schedule a time-block (like Google Calendar)
+                Click any time slot below to schedule a time-block
               </span>
             </div>
             <div style={{ display: "flex", gap: 8 }}>

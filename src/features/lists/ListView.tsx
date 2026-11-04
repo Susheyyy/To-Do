@@ -38,8 +38,10 @@ export function ListView({ id }: { id: ListId }) {
   const completedToday = useTasks((s) => s.completedToday);
   const error = useTasks((s) => s.error);
   const rescheduleOverdue = useTasks((s) => s.rescheduleOverdue);
+  const projects = useTasks((s) => s.projects);
   const layout = useUi((s) => s.layout);
   const showCompleted = useUi((s) => s.showCompleted);
+  const groupBy = useUi((s) => s.groupBy);
   const sort = useUi((s) => s.sort);
   const filterPriority = useUi((s) => s.filterPriority);
   const filterTag = useUi((s) => s.filterTag);
@@ -133,8 +135,60 @@ export function ListView({ id }: { id: ListId }) {
 
         {id === "today" && layout === "list" && (
           <>
-            {overdue.length > 0 && <Group title="Overdue" tasks={applyFilters(overdue)} />}
-            {today.length > 0 && <Group title="Today" tasks={applyFilters(today)} />}
+            {groupBy === "priority" && (
+              <>
+                {PRIORITY_COLUMNS.map((col) => {
+                  const tasksInPriority = applyFilters(rawDueNow.filter((t) => t.priority === col.key));
+                  if (tasksInPriority.length === 0) return null;
+                  return <Group key={col.key} title={col.title} tasks={tasksInPriority} />;
+                })}
+              </>
+            )}
+
+            {groupBy === "project" && (
+              <>
+                {(() => {
+                  const noProjectTasks = applyFilters(rawDueNow.filter((t) => !t.projectId));
+                  return (
+                    <>
+                      {noProjectTasks.length > 0 && <Group title="Inbox" tasks={noProjectTasks} />}
+                      {projects.map((p) => {
+                        const projectTasks = applyFilters(rawDueNow.filter((t) => t.projectId === p.id));
+                        if (projectTasks.length === 0) return null;
+                        return <Group key={p.id} title={p.name} tasks={projectTasks} />;
+                      })}
+                    </>
+                  );
+                })()}
+              </>
+            )}
+
+            {groupBy === "label" && (
+              <>
+                {(() => {
+                  const allTodayTags = Array.from(new Set(rawDueNow.flatMap((t) => t.tags))).sort();
+                  const untagged = applyFilters(rawDueNow.filter((t) => t.tags.length === 0));
+                  return (
+                    <>
+                      {allTodayTags.map((tag) => {
+                        const taggedTasks = applyFilters(rawDueNow.filter((t) => t.tags.includes(tag)));
+                        if (taggedTasks.length === 0) return null;
+                        return <Group key={tag} title={`@${tag}`} tasks={taggedTasks} />;
+                      })}
+                      {untagged.length > 0 && <Group title="No label" tasks={untagged} />}
+                    </>
+                  );
+                })()}
+              </>
+            )}
+
+            {groupBy === "none" && (
+              <>
+                {overdue.length > 0 && <Group title="Overdue" tasks={applyFilters(overdue)} />}
+                {today.length > 0 && <Group title="Today" tasks={applyFilters(today)} />}
+              </>
+            )}
+
             {showCompleted && completedToday.length > 0 && (
               <Group title="Completed" tasks={applyFilters(completedToday)} />
             )}
@@ -143,12 +197,47 @@ export function ListView({ id }: { id: ListId }) {
 
         {id === "today" && layout === "board" && (
           <Board
-            columns={PRIORITY_COLUMNS.map((c) => ({
-              key: c.key,
-              title: c.title,
-              due: todayIso(),
-              tasks: dueNow.filter((t) => t.priority === c.key),
-            }))}
+            columns={
+              groupBy === "project"
+                ? [
+                    {
+                      key: "inbox",
+                      title: "Inbox",
+                      due: todayIso(),
+                      tasks: dueNow.filter((t) => !t.projectId),
+                    },
+                    ...projects.map((p) => ({
+                      key: p.id,
+                      title: p.name,
+                      due: todayIso(),
+                      projectId: p.id,
+                      tasks: dueNow.filter((t) => t.projectId === p.id),
+                    })),
+                  ]
+                : groupBy === "label"
+                ? [
+                    ...Array.from(new Set(rawDueNow.flatMap((t) => t.tags)))
+                      .sort()
+                      .map((tag) => ({
+                        key: tag,
+                        title: `@${tag}`,
+                        due: todayIso(),
+                        tasks: dueNow.filter((t) => t.tags.includes(tag)),
+                      })),
+                    {
+                      key: "untagged",
+                      title: "No label",
+                      due: todayIso(),
+                      tasks: dueNow.filter((t) => t.tags.length === 0),
+                    },
+                  ]
+                : PRIORITY_COLUMNS.map((c) => ({
+                    key: c.key,
+                    title: c.title,
+                    due: todayIso(),
+                    tasks: dueNow.filter((t) => t.priority === c.key),
+                  }))
+            }
           />
         )}
 

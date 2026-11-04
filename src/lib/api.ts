@@ -35,4 +35,7 @@ export const api = {
   logHabit: (habitId: string, date: string) => invoke<HabitLog>("log_habit", { habitId, date }),
   unlogHabit: (habitId: string, date: string) => invoke<void>("unlog_habit", { habitId, date }),
   listHabitLogs: (start: string, end: string) => invoke<HabitLog[]>("list_habit_logs", { start, end }),
+  createBackup: () => invoke<string>("create_backup"),
+  exportJson: () => invoke<string>("export_json"),
+  exportCsv: () => invoke<string>("export_csv"),
 };

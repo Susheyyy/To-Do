@@ -44,6 +44,8 @@ interface TasksState {
   createSection: (projectId: string, name: string) => Promise<void>;
   renameSection: (id: string, name: string) => Promise<void>;
   deleteSection: (id: string) => Promise<void>;
+  renameTag: (oldTag: string, newTag: string) => Promise<void>;
+  deleteTag: (tag: string) => Promise<void>;
   rescheduleOverdue: () => Promise<void>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
@@ -103,6 +105,28 @@ export const useTasks = create<TasksState>((set, get) => {
     createSection: (projectId, name) => guard(() => api.createSection(projectId, name)),
     renameSection: (id, name) => guard(() => api.renameSection(id, name)),
     deleteSection: (id) => guard(() => api.deleteSection(id)),
+    renameTag: (oldTag: string, newTag: string) =>
+      guard(async () => {
+        const cleanOld = oldTag.trim().toLowerCase();
+        const cleanNew = newTag.trim().toLowerCase();
+        if (!cleanNew || cleanOld === cleanNew) return;
+        const matchingTasks = get().open.filter((t) => t.tags.includes(cleanOld));
+        for (const task of matchingTasks) {
+          const updatedTags = Array.from(
+            new Set(task.tags.map((t) => (t === cleanOld ? cleanNew : t)))
+          );
+          await api.updateTask(task.id, toInput(task, { tags: updatedTags }));
+        }
+      }),
+    deleteTag: (tag: string) =>
+      guard(async () => {
+        const clean = tag.trim().toLowerCase();
+        const matchingTasks = get().open.filter((t) => t.tags.includes(clean));
+        for (const task of matchingTasks) {
+          const updatedTags = task.tags.filter((t) => t !== clean);
+          await api.updateTask(task.id, toInput(task, { tags: updatedTags }));
+        }
+      }),
     rescheduleOverdue: () =>
       guard(async () => {
         for (const task of get().overdue) {

@@ -15,7 +15,7 @@ use tauri::{
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-use commands::{habits, history, projects, tasks, tray};
+use commands::{backup, export, habits, history, projects, tasks, tray};
 use services::history::History;
 use state::AppState;
 
@@ -160,6 +160,9 @@ pub fn run() {
             habits::log_habit,
             habits::unlog_habit,
             habits::list_habit_logs,
+            backup::create_backup,
+            export::export_json,
+            export::export_csv,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

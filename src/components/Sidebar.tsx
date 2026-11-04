@@ -122,14 +122,6 @@ export function Sidebar() {
             </div>
           )}
         </div>
-        <div className="sidebar-top-actions">
-          <button className="icon-btn small" aria-label="Notifications" title="Notifications">
-            <Icon name="bell" size={17} />
-          </button>
-          <button className="icon-btn small" aria-label="Toggle sidebar" title="Toggle sidebar">
-            <Icon name="sidebar" size={17} />
-          </button>
-        </div>
       </div>
 
       <button className="add-task-btn" onClick={openQuickAdd}>
@@ -159,50 +151,52 @@ export function Sidebar() {
         ))}
       </nav>
 
-      <div className="projects-head">
-        <span className="sidebar-label">My Projects</span>
-        <button className="icon-btn small add-project-btn" aria-label="Add project" onClick={() => setAdding(true)}>
-          <Icon name="plus" size={14} />
-        </button>
+      <div className="projects-section">
+        <div className="projects-head">
+          <span className="sidebar-label">My Projects</span>
+          <button className="icon-btn small add-project-btn" aria-label="Add project" onClick={() => setAdding(true)}>
+            <Icon name="plus" size={14} />
+          </button>
+        </div>
+
+        {adding && (
+          <form className="add-project-form" onSubmit={submitProject}>
+            <input
+              className="add-project-input"
+              autoFocus
+              value={name}
+              placeholder="Project name"
+              onChange={(e) => setName(e.target.value)}
+              onBlur={() => {
+                if (!name.trim()) setAdding(false);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Escape") {
+                  setName("");
+                  setAdding(false);
+                }
+              }}
+              aria-label="Project name"
+            />
+          </form>
+        )}
+
+        <nav className="nav">
+          {projects.map((p) => {
+            const key = `project:${p.id}` as const;
+            const pending = open.filter((t) => t.projectId === p.id).length;
+            return (
+              <button key={p.id} className={`nav-item ${view === key ? "active" : ""}`} onClick={() => setView(key)}>
+                <span className="project-hash" style={{ color: projectColor(theme.id, p.color) }}>
+                  #
+                </span>
+                <span className="nav-label">{p.name}</span>
+                {pending > 0 && <span className="nav-count">{pending}</span>}
+              </button>
+            );
+          })}
+        </nav>
       </div>
-
-      {adding && (
-        <form className="add-project-form" onSubmit={submitProject}>
-          <input
-            className="add-project-input"
-            autoFocus
-            value={name}
-            placeholder="Project name"
-            onChange={(e) => setName(e.target.value)}
-            onBlur={() => {
-              if (!name.trim()) setAdding(false);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Escape") {
-                setName("");
-                setAdding(false);
-              }
-            }}
-            aria-label="Project name"
-          />
-        </form>
-      )}
-
-      <nav className="nav">
-        {projects.map((p) => {
-          const key = `project:${p.id}` as const;
-          const pending = open.filter((t) => t.projectId === p.id).length;
-          return (
-            <button key={p.id} className={`nav-item ${view === key ? "active" : ""}`} onClick={() => setView(key)}>
-              <span className="project-hash" style={{ color: projectColor(theme.id, p.color) }}>
-                #
-              </span>
-              <span className="nav-label">{p.name}</span>
-              {pending > 0 && <span className="nav-count">{pending}</span>}
-            </button>
-          );
-        })}
-      </nav>
 
       <div className="sidebar-foot">
         <button className={`nav-item ${view === "settings" ? "active" : ""}`} onClick={() => setView("settings")}>

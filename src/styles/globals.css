@@ -1981,12 +1981,13 @@ button {
 }
 
 .floating-bar-add-icon {
-  width: 28px;
-  height: 28px;
+  width: 28px !important;
+  height: 28px !important;
+  padding: 0 !important;
   border-radius: 8px;
-  background: var(--color-bg);
-  border: 1px solid var(--color-border);
-  color: var(--color-muted);
+  background: var(--color-bg) !important;
+  border: 1px solid var(--color-border) !important;
+  color: var(--color-muted) !important;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -2009,39 +2010,62 @@ button {
 }
 
 .floating-bar-clear-btn {
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
+  background: transparent !important;
+  border: none !important;
+  padding: 4px !important;
+  color: var(--color-muted) !important;
   cursor: pointer;
-  padding: 4px;
-  border-radius: 4px;
+  border-radius: 6px;
   display: flex;
   align-items: center;
   justify-content: center;
+  flex-shrink: 0;
 }
 
 .floating-bar-clear-btn:hover {
-  color: var(--color-text);
+  color: var(--color-text) !important;
+}
+
+.floating-bar-mic-btn {
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--color-muted) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.floating-bar-mic-btn:hover {
+  background: var(--color-bg) !important;
+  color: var(--color-text) !important;
 }
 
 .floating-bar-close-btn {
-  width: 28px;
-  height: 28px;
-  border-radius: 8px;
-  background: transparent;
-  border: none;
-  color: var(--color-muted);
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  width: 32px !important;
+  height: 32px !important;
+  padding: 0 !important;
+  border-radius: 8px !important;
+  background: transparent !important;
+  border: none !important;
+  color: var(--color-muted) !important;
+  display: flex !important;
+  align-items: center !important;
+  justify-content: center !important;
   cursor: pointer;
   flex-shrink: 0;
   transition: all 0.15s ease;
 }
 
 .floating-bar-close-btn:hover {
-  background: var(--color-bg);
-  color: var(--color-text);
+  background: var(--color-bg) !important;
+  color: var(--color-text) !important;
 }
 
 
@@ -2672,4 +2696,195 @@ button {
 
 .profile-popup-settings-btn:hover {
   opacity: 0.8;
+}
+
+
+/* Custom Days Picker */
+.habit-days-picker {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.habit-day-btn {
+  background: var(--color-bg);
+  border: 1px solid var(--color-border);
+  color: var(--color-text);
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.habit-day-btn:hover {
+  border-color: var(--color-accent);
+}
+
+.habit-day-btn.selected {
+  background: var(--color-accent);
+  color: var(--color-accentText);
+  border-color: var(--color-accent);
+  font-weight: 700;
+}
+
+
+/* Board Add Section Column */
+.board-add-section-col {
+  min-width: 200px;
+  max-width: 260px;
+  background: transparent;
+  border-radius: 10px;
+  padding: 8px 12px;
+  border: 1px dashed var(--color-border);
+  transition: all 0.15s ease;
+  align-self: flex-start;
+}
+
+.board-add-section-col:hover,
+.board-add-section-col:focus-within {
+  border-color: var(--color-accent);
+  background: var(--color-surface);
+}
+
+.section-add-board .subtask-input {
+  border-bottom: none;
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--color-text);
+  padding: 6px 4px;
+}
+
+
+/* Label Item Container & Hover Actions */
+.label-item-chip-container {
+  display: inline-flex;
+  align-items: center;
+  position: relative;
+  border-radius: 999px;
+}
+
+.label-item-chip-container:hover .label-hover-actions {
+  display: flex;
+}
+
+.label-hover-actions {
+  display: none;
+  align-items: center;
+  gap: 2px;
+  margin-left: -6px;
+  margin-right: 6px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-border);
+  border-radius: 999px;
+  padding: 1px 4px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.08);
+}
+
+.label-action-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: color 0.15s ease;
+}
+
+.label-action-btn:hover {
+  color: var(--color-text);
+}
+
+.label-action-btn.delete:hover {
+  color: #de4c4a;
+}
+
+.edit-label-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  background: var(--color-surface);
+  border: 1px solid var(--color-accent);
+  border-radius: 999px;
+  padding: 4px 10px;
+}
+
+
+/* Projects Section in Sidebar */
+.projects-section {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.projects-section .projects-head {
+  padding: 2px 8px;
+  margin-bottom: 0px;
+}
+
+.projects-section nav.nav {
+  margin-top: 0px;
+  gap: 1px;
+}
+
+
+/* Voice / Mic input button styles */
+.mic-input-btn {
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  cursor: pointer;
+  padding: 4px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.mic-input-btn:hover {
+  color: var(--color-text);
+  background: var(--color-bg);
+}
+
+.mic-input-btn.listening,
+.floating-bar-mic-btn.listening {
+  color: #ef4444;
+  animation: mic-pulse 1s infinite alternate;
+}
+
+.floating-bar-mic-btn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  background: transparent;
+  border: none;
+  color: var(--color-muted);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: all 0.15s ease;
+}
+
+.floating-bar-mic-btn:hover {
+  background: var(--color-bg);
+  color: var(--color-text);
+}
+
+@keyframes mic-pulse {
+  from {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  to {
+    transform: scale(1.18);
+    opacity: 1;
+  }
 }

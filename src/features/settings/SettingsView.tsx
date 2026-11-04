@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 
 import { ThemePicker } from "../../components/ThemePicker";
+import { api } from "../../lib/api";
 import { useSettings } from "../../stores/settings.store";
 
 export function SettingsView() {
@@ -23,6 +24,49 @@ export function SettingsView() {
   const setMorningBriefingTime = useSettings((s) => s.setMorningBriefingTime);
 
   const [autostart, setAutostart] = useState(false);
+  const [backupMsg, setBackupMsg] = useState("");
+
+  function downloadFile(content: string, filename: string, type: string) {
+    const blob = new Blob([content], { type });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
+  async function handleExportJson() {
+    try {
+      const data = await api.exportJson();
+      downloadFile(data, `todo_export_${new Date().toISOString().slice(0, 10)}.json`, "application/json");
+      setBackupMsg("JSON exported successfully!");
+      setTimeout(() => setBackupMsg(""), 3500);
+    } catch (e) {
+      setBackupMsg(`Export failed: ${e}`);
+    }
+  }
+
+  async function handleExportCsv() {
+    try {
+      const data = await api.exportCsv();
+      downloadFile(data, `todo_tasks_${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
+      setBackupMsg("CSV exported successfully!");
+      setTimeout(() => setBackupMsg(""), 3500);
+    } catch (e) {
+      setBackupMsg(`Export failed: ${e}`);
+    }
+  }
+
+  async function handleBackupDatabase() {
+    try {
+      const path = await api.createBackup();
+      setBackupMsg(`Database backed up to: ${path}`);
+      setTimeout(() => setBackupMsg(""), 5000);
+    } catch (e) {
+      setBackupMsg(`Backup failed: ${e}`);
+    }
+  }
 
   useEffect(() => {
     isEnabled().then(setAutostart).catch(() => {});
@@ -161,6 +205,29 @@ export function SettingsView() {
           >
             <span className="toggle-thumb" />
           </button>
+        </div>
+      </section>
+
+      <section className="card settings-group">
+        <h2 className="group-title">Backups & Data Export</h2>
+        <div className="settings-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 10 }}>
+          <span className="settings-label">Export your tasks and projects</span>
+          <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+            <button className="chip" onClick={handleExportJson}>
+              Export JSON
+            </button>
+            <button className="chip" onClick={handleExportCsv}>
+              Export CSV
+            </button>
+            <button className="chip primary" onClick={handleBackupDatabase}>
+              Backup SQLite Database
+            </button>
+          </div>
+          {backupMsg && (
+            <p className="muted" style={{ margin: "4px 0 0", fontSize: 13, color: "var(--color-accentText)" }}>
+              {backupMsg}
+            </p>
+          )}
         </div>
       </section>
     </div>

@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { format, parseISO } from "date-fns";
 
+import { Icon } from "./Icon";
 import { parseTask } from "../lib/nlp/parseTask";
 import { formatTime } from "../lib/time";
 import { useSettings } from "../stores/settings.store";
@@ -29,8 +30,40 @@ export function QuickAdd({
   const createTask = useTasks((s) => s.createTask);
   const ensureProject = useTasks((s) => s.ensureProject);
   const [text, setText] = useState("");
+  const [listening, setListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const recognizerRef = useRef<any>(null);
   const parsed = useMemo(() => parseTask(text), [text]);
+
+  function toggleVoice() {
+    const SR = (window as any).SpeechRecognition ?? (window as any).webkitSpeechRecognition;
+    if (!SR) return;
+
+    if (listening) {
+      recognizerRef.current?.stop();
+      setListening(false);
+      return;
+    }
+
+    try {
+      const recognizer = new SR();
+      recognizer.lang = "en-US";
+      recognizer.interimResults = false;
+      recognizer.maxAlternatives = 1;
+      recognizerRef.current = recognizer;
+
+      recognizer.onstart = () => setListening(true);
+      recognizer.onend = () => setListening(false);
+      recognizer.onerror = () => setListening(false);
+      recognizer.onresult = (e: any) => {
+        const transcript = e.results[0]?.[0]?.transcript ?? "";
+        if (transcript) setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+      };
+      recognizer.start();
+    } catch {
+      setListening(false);
+    }
+  }
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
@@ -85,6 +118,15 @@ export function QuickAdd({
           placeholder={placeholder}
           aria-label="New task"
         />
+        <button
+          type="button"
+          className={`mic-input-btn${listening ? " listening" : ""}`}
+          onClick={toggleVoice}
+          title={listening ? "Stop recording" : "Voice input"}
+          aria-label="Voice input"
+        >
+          <Icon name="mic" size={16} />
+        </button>
       </div>
       {chips.length > 0 && (
         <div className="preview">

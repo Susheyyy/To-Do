@@ -6,6 +6,8 @@ pub enum AppError {
     Db(#[from] rusqlite::Error),
     #[error("file error: {0}")]
     Io(#[from] std::io::Error),
+    #[error("tauri error: {0}")]
+    Tauri(#[from] tauri::Error),
     #[error("not found: {0}")]
     NotFound(String),
     #[error("{0}")]

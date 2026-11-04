@@ -1,4 +1,4 @@
-import { useRef } from "react";
+import { ReactNode, useRef } from "react";
 import { AddInline } from "./AddInline";
 import { TaskRow } from "../features/today/TaskRow";
 import { Layout, useUi } from "../stores/ui.store";
@@ -13,7 +13,13 @@ export interface Column {
   sectionId?: string | null;
 }
 
-export function Board({ columns }: { columns: Column[] }) {
+export function Board({
+  columns,
+  extraColumn,
+}: {
+  columns: Column[];
+  extraColumn?: ReactNode;
+}) {
   const containerRef = useRef<HTMLDivElement>(null);
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
@@ -77,6 +83,7 @@ export function Board({ columns }: { columns: Column[] }) {
           </div>
         </div>
       ))}
+      {extraColumn}
     </div>
   );
 }

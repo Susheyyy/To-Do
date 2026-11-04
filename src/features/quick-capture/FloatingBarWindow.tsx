@@ -1,6 +1,5 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Icon } from "../../components/Icon";
 import { api } from "../../lib/api";
 import { parseTask } from "../../lib/nlp/parseTask";
@@ -38,9 +37,11 @@ export function FloatingBarWindow() {
 
     async function tryPasteSelection() {
       try {
-        const clip = await readText();
-        if (clip && clip.trim().length > 0 && clip.trim().length < 300) {
-          setText(clip.trim());
+        if (navigator.clipboard?.readText) {
+          const clip = await navigator.clipboard.readText();
+          if (clip && clip.trim().length > 0 && clip.trim().length < 300) {
+            setText(clip.trim());
+          }
         }
       } catch {}
     }

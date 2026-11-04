@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { useTasks } from "../stores/tasks.store";
-import { SortKey, useUi } from "../stores/ui.store";
+import { GroupKey, SortKey, useUi } from "../stores/ui.store";
 import type { Priority } from "../types/models";
 import { Icon } from "./Icon";
 
@@ -21,6 +21,8 @@ export function DisplayMenu({
   const setLayout = useUi((s) => s.setLayout);
   const showCompleted = useUi((s) => s.showCompleted);
   const setShowCompleted = useUi((s) => s.setShowCompleted);
+  const groupBy = useUi((s) => s.groupBy);
+  const setGroupBy = useUi((s) => s.setGroupBy);
   const sort = useUi((s) => s.sort);
   const setSort = useUi((s) => s.setSort);
   const filterPriority = useUi((s) => s.filterPriority);
@@ -44,14 +46,15 @@ export function DisplayMenu({
   }, [open]);
 
   function resetAll() {
+    setGroupBy("none");
     setSort("manual");
     setFilterPriority("all");
     setFilterTag("all");
     setShowCompleted(false);
-    setLayout("board");
+    setLayout("list");
   }
 
-  const isFiltered = filterPriority !== "all" || filterTag !== "all" || sort !== "manual";
+  const isFiltered = filterPriority !== "all" || filterTag !== "all" || sort !== "manual" || groupBy !== "none";
 
   return (
     <div className="popover-anchor" ref={anchorRef}>
@@ -100,9 +103,16 @@ export function DisplayMenu({
           </div>
 
           {showCompletedToggle && (
-            <div className="popover-setting-row">
+            <div
+              className="popover-setting-row"
+              style={{ cursor: "pointer" }}
+              onClick={() => setShowCompleted(!showCompleted)}
+            >
               <span>Completed tasks</span>
-              <label className="todoist-switch">
+              <label
+                className="todoist-switch"
+                onClick={(e) => e.stopPropagation()}
+              >
                 <input
                   type="checkbox"
                   checked={showCompleted}
@@ -122,18 +132,17 @@ export function DisplayMenu({
 
           <div className="popover-form-row">
             <span className="form-label">
-              Grouping <span className="orange-dot" />
+              Grouping {groupBy !== "none" && <span className="orange-dot" />}
             </span>
             <select
               className="popover-select"
-              value={sort === "priority" ? "priority" : "none"}
-              onChange={(e) => {
-                if (e.target.value === "priority") setSort("priority");
-                else setSort("manual");
-              }}
+              value={groupBy}
+              onChange={(e) => setGroupBy(e.target.value as GroupKey)}
             >
               <option value="none">None</option>
               <option value="priority">Priority</option>
+              <option value="project">Project</option>
+              <option value="label">Label</option>
             </select>
           </div>
 

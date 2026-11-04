@@ -6,10 +6,20 @@ import type { Habit, HabitFrequency, HabitInput } from "../../types/models";
 
 const FREQ_LABELS: Record<HabitFrequency, string> = {
   daily: "Every day",
-  weekdays: "Weekdays",
-  weekly: "Weekly",
-  custom: "Custom",
+  weekdays: "Weekdays (Mon-Fri)",
+  weekly: "Weekly (Once a week)",
+  custom: "Custom Days",
 };
+
+const WEEKDAY_KEYS = [
+  { key: "1", label: "Mon" },
+  { key: "2", label: "Tue" },
+  { key: "3", label: "Wed" },
+  { key: "4", label: "Thu" },
+  { key: "5", label: "Fri" },
+  { key: "6", label: "Sat" },
+  { key: "0", label: "Sun" },
+];
 
 const HABIT_COLORS = [
   "#f4a6c8", "#f4c16e", "#7ecfb5", "#84c1f4", "#b8a9f4",
@@ -83,8 +93,17 @@ export function HabitsView() {
     }
   }
 
+  function formatFrequencyLabel(habit: Habit): string {
+    if (habit.frequency !== "custom" || !habit.customDays) {
+      return FREQ_LABELS[habit.frequency] || "Every day";
+    }
+    const days = habit.customDays.split(",");
+    const map: Record<string, string> = { "1": "Mon", "2": "Tue", "3": "Wed", "4": "Thu", "5": "Fri", "6": "Sat", "0": "Sun" };
+    return days.map((d) => map[d] || d).join(", ");
+  }
+
   function openAdd() {
-    setForm({ name: "", color: HABIT_COLORS[0], icon: null, frequency: "daily", customDays: null, targetStreak: 1 });
+    setForm({ name: "", color: HABIT_COLORS[0], icon: null, frequency: "daily", customDays: "1,2,3,4,5", targetStreak: 1 });
     setEditing(null);
     setAdding(true);
   }
@@ -157,6 +176,33 @@ export function HabitsView() {
             </select>
           </div>
 
+          {form.frequency === "custom" && (
+            <div className="habit-field-group">
+              <label className="habit-field-label">Select Active Days</label>
+              <div className="habit-days-picker">
+                {WEEKDAY_KEYS.map((day) => {
+                  const activeDays = (form.customDays ? form.customDays.split(",") : []);
+                  const isSelected = activeDays.includes(day.key);
+                  return (
+                    <button
+                      type="button"
+                      key={day.key}
+                      className={`habit-day-btn ${isSelected ? "selected" : ""}`}
+                      onClick={() => {
+                        const next = isSelected
+                          ? activeDays.filter((k) => k !== day.key)
+                          : [...activeDays, day.key];
+                        setForm((f) => ({ ...f, customDays: next.join(",") }));
+                      }}
+                    >
+                      {day.label}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           <div className="habit-field-group">
             <label className="habit-field-label">Color Badge</label>
             <div className="habit-color-row">
@@ -226,12 +272,9 @@ export function HabitsView() {
                   onClick={() => openEdit(habit)}
                   title="Edit habit"
                 >
-                  <span
-                    className="habit-dot"
-                    style={{ background: habit.color ?? "var(--color-accent)" }}
-                  />
+                  <span className="habit-dot" style={{ background: habit.color ?? "var(--color-accent)" }} />
                   <span className="habit-name-text">{habit.name}</span>
-                  <span className="habit-freq">{FREQ_LABELS[habit.frequency]}</span>
+                  <span className="habit-freq">{formatFrequencyLabel(habit)}</span>
                 </button>
                 <div className="habit-grid-days">
                   {grid.map((d) => {

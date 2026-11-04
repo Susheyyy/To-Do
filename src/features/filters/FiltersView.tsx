@@ -6,16 +6,21 @@ import { Group } from "../../components/Group";
 import { Icon } from "../../components/Icon";
 import { tagColor } from "../../lib/projectColors";
 import { sortTasks } from "../../lib/sortTasks";
+import { useConfirm } from "../../stores/confirm.store";
 import { useTasks } from "../../stores/tasks.store";
 import { useUi } from "../../stores/ui.store";
 
 export function FiltersView() {
   const open = useTasks((s) => s.open);
+  const renameTag = useTasks((s) => s.renameTag);
+  const deleteTag = useTasks((s) => s.deleteTag);
   const sort = useUi((s) => s.sort);
   const setView = useUi((s) => s.setView);
   const [selectedTag, setSelectedTag] = useState<string | null>(null);
   const [addingLabel, setAddingLabel] = useState(false);
   const [newLabelName, setNewLabelName] = useState("");
+  const [editingTag, setEditingTag] = useState<string | null>(null);
+  const [editName, setEditName] = useState("");
   const [customLabels, setCustomLabels] = useState<string[]>([]);
 
   const allTags = Array.from(new Set([...open.flatMap((t) => t.tags), ...customLabels])).sort();
@@ -30,6 +35,25 @@ export function FiltersView() {
     setSelectedTag(clean);
     setNewLabelName("");
     setAddingLabel(false);
+  }
+
+  async function handleRenameTag(oldTag: string) {
+    const clean = editName.trim().replace(/^@/, "").toLowerCase();
+    if (clean && clean !== oldTag) {
+      await renameTag(oldTag, clean);
+      setCustomLabels((prev) => prev.map((t) => (t === oldTag ? clean : t)));
+      if (selectedTag === oldTag) setSelectedTag(clean);
+    }
+    setEditingTag(null);
+  }
+
+  async function handleDeleteTag(tag: string) {
+    const confirmed = await useConfirm.getState().ask(`Delete label "@${tag}" from all tasks?`);
+    if (confirmed) {
+      await deleteTag(tag);
+      setCustomLabels((prev) => prev.filter((t) => t !== tag));
+      if (selectedTag === tag) setSelectedTag(null);
+    }
   }
 
   const priorities = [
@@ -121,19 +145,73 @@ export function FiltersView() {
             {allTags.map((tag) => {
               const count = open.filter((t) => t.tags.includes(tag)).length;
               const active = selectedTag === tag;
+              const isEditing = editingTag === tag;
+
+              if (isEditing) {
+                return (
+                  <form
+                    key={tag}
+                    className="edit-label-form"
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      void handleRenameTag(tag);
+                    }}
+                  >
+                    <span className="label-at-prefix">@</span>
+                    <input
+                      autoFocus
+                      className="add-label-input"
+                      value={editName}
+                      onChange={(e) => setEditName(e.target.value)}
+                      onBlur={() => void handleRenameTag(tag)}
+                      onKeyDown={(e) => {
+                        if (e.key === "Escape") setEditingTag(null);
+                      }}
+                    />
+                  </form>
+                );
+              }
+
               return (
-                <button
-                  key={tag}
-                  className={`pill-tag ${active ? "active" : ""}`}
-                  onClick={() => setSelectedTag(active ? null : tag)}
-                  style={{ borderColor: active ? tagColor(tag) : undefined }}
-                >
-                  <span style={{ color: tagColor(tag), display: "inline-flex" }}>
-                    <Icon name="tag" size={14} />
-                  </span>
-                  <span>@{tag}</span>
-                  <span className="pill-count">{count}</span>
-                </button>
+                <div key={tag} className="label-item-chip-container">
+                  <button
+                    className={`pill-tag ${active ? "active" : ""}`}
+                    onClick={() => setSelectedTag(active ? null : tag)}
+                    style={{ borderColor: active ? tagColor(tag) : undefined }}
+                  >
+                    <span style={{ color: tagColor(tag), display: "inline-flex" }}>
+                      <Icon name="tag" size={14} />
+                    </span>
+                    <span>@{tag}</span>
+                    <span className="pill-count">{count}</span>
+                  </button>
+
+                  <div className="label-hover-actions">
+                    <button
+                      className="label-action-btn"
+                      title="Rename label"
+                      aria-label="Rename label"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setEditName(tag);
+                        setEditingTag(tag);
+                      }}
+                    >
+                      <Icon name="more" size={13} />
+                    </button>
+                    <button
+                      className="label-action-btn delete"
+                      title="Delete label"
+                      aria-label="Delete label"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        void handleDeleteTag(tag);
+                      }}
+                    >
+                      <Icon name="trash" size={13} />
+                    </button>
+                  </div>
+                </div>
               );
             })}
           </div>
