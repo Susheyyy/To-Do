@@ -18,6 +18,7 @@ export interface Task {
   sectionId: string | null;
   tags: string[];
   subtasks: Subtask[];
+  recurRule: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -31,6 +32,7 @@ export interface TaskInput {
   projectId: string | null;
   sectionId: string | null;
   tags: string[];
+  recurRule: string | null;
 }
 
 export interface Section {
@@ -44,4 +46,34 @@ export interface Project {
   name: string;
   color: string | null;
   sections: Section[];
+}
+
+export type HabitFrequency = "daily" | "weekdays" | "weekly" | "custom";
+
+export interface Habit {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+  frequency: HabitFrequency;
+  customDays: string | null;
+  targetStreak: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface HabitInput {
+  name: string;
+  color: string | null;
+  icon: string | null;
+  frequency: HabitFrequency;
+  customDays: string | null;
+  targetStreak: number;
+}
+
+export interface HabitLog {
+  id: string;
+  habitId: string;
+  loggedDate: string;
+  createdAt: string;
 }

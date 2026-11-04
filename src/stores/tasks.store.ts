@@ -17,6 +17,7 @@ export function toInput(task: Task, patch: Partial<TaskInput> = {}): TaskInput {
     projectId: task.projectId,
     sectionId: task.sectionId,
     tags: task.tags,
+    recurRule: task.recurRule,
     ...patch,
   };
 }

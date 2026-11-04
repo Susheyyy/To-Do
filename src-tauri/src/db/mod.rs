@@ -1,3 +1,4 @@
+pub mod habits_repo;
 pub mod projects_repo;
 pub mod tasks_repo;
 
@@ -10,6 +11,7 @@ use crate::error::AppResult;
 const MIGRATIONS: &[(&str, &str)] = &[
     ("001_init", include_str!("migrations/001_init.sql")),
     ("002_priority_none", include_str!("migrations/002_priority_none.sql")),
+    ("003_recurring_habits", include_str!("migrations/003_recurring_habits.sql")),
 ];
 
 pub fn open(dir: &Path) -> AppResult<Connection> {

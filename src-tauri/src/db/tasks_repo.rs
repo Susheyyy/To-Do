@@ -94,7 +94,7 @@ pub fn get(conn: &Connection, id: &str) -> AppResult<Task> {
     let mut task = conn
         .query_row(
             "SELECT id, title, notes, priority, due_date, due_time, completed_at,
-                    project_id, section_id, created_at, updated_at
+                    project_id, section_id, recur_rule, created_at, updated_at
              FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
             [id],
             |row| {
@@ -108,10 +108,11 @@ pub fn get(conn: &Connection, id: &str) -> AppResult<Task> {
                     completed_at: row.get(6)?,
                     project_id: row.get(7)?,
                     section_id: row.get(8)?,
+                    recur_rule: row.get(9)?,
                     tags: Vec::new(),
                     subtasks: Vec::new(),
-                    created_at: row.get(9)?,
-                    updated_at: row.get(10)?,
+                    created_at: row.get(10)?,
+                    updated_at: row.get(11)?,
                 })
             },
         )
@@ -136,8 +137,8 @@ pub fn create(conn: &mut Connection, input: TaskInput) -> AppResult<Task> {
     let ts = now();
     let tx = conn.transaction()?;
     tx.execute(
-        "INSERT INTO tasks (id, title, notes, priority, due_date, due_time, project_id, section_id, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?9)",
+        "INSERT INTO tasks (id, title, notes, priority, due_date, due_time, project_id, section_id, recur_rule, created_at, updated_at)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)",
         params![
             id,
             input.title.trim(),
@@ -147,6 +148,7 @@ pub fn create(conn: &mut Connection, input: TaskInput) -> AppResult<Task> {
             input.due_time,
             input.project_id,
             input.section_id,
+            input.recur_rule,
             ts
         ],
     )?;
@@ -160,7 +162,7 @@ pub fn update(conn: &mut Connection, id: &str, input: TaskInput) -> AppResult<Ta
     let tx = conn.transaction()?;
     let changed = tx.execute(
         "UPDATE tasks SET title = ?2, notes = ?3, priority = ?4, due_date = ?5, due_time = ?6,
-                project_id = ?7, section_id = ?8, updated_at = ?9
+                project_id = ?7, section_id = ?8, recur_rule = ?9, updated_at = ?10
          WHERE id = ?1 AND deleted_at IS NULL",
         params![
             id,
@@ -171,6 +173,7 @@ pub fn update(conn: &mut Connection, id: &str, input: TaskInput) -> AppResult<Ta
             input.due_time,
             input.project_id,
             input.section_id,
+            input.recur_rule,
             now()
         ],
     )?;
@@ -312,8 +315,8 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
         Some(task) => {
             conn.execute(
                 "INSERT INTO tasks (id, title, notes, priority, due_date, due_time, completed_at,
-                                    project_id, section_id, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11)
+                                    project_id, section_id, recur_rule, created_at, updated_at)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     notes = excluded.notes,
@@ -323,6 +326,7 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
                     completed_at = excluded.completed_at,
                     project_id = excluded.project_id,
                     section_id = excluded.section_id,
+                    recur_rule = excluded.recur_rule,
                     updated_at = excluded.updated_at,
                     deleted_at = NULL",
                 params![
@@ -335,6 +339,7 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
                     task.completed_at,
                     task.project_id,
                     task.section_id,
+                    task.recur_rule,
                     task.created_at,
                     ts
                 ],

@@ -1,6 +1,6 @@
 import { invoke } from "@tauri-apps/api/core";
 
-import type { Project, Section, Task, TaskInput } from "../types/models";
+import type { Habit, HabitInput, HabitLog, Project, Section, Task, TaskInput } from "../types/models";
 
 export const api = {
   createTask: (input: TaskInput) => invoke<Task>("create_task", { input }),
@@ -28,4 +28,11 @@ export const api = {
   redo: () => invoke<string | null>("redo"),
   updateTrayBadge: (count: number) => invoke<void>("update_tray_badge", { count }),
   hideWindow: (label: string) => invoke<void>("hide_window", { label }),
+  listHabits: () => invoke<Habit[]>("list_habits"),
+  createHabit: (input: HabitInput) => invoke<Habit>("create_habit", { input }),
+  updateHabit: (id: string, input: HabitInput) => invoke<Habit>("update_habit", { id, input }),
+  deleteHabit: (id: string) => invoke<void>("delete_habit", { id }),
+  logHabit: (habitId: string, date: string) => invoke<HabitLog>("log_habit", { habitId, date }),
+  unlogHabit: (habitId: string, date: string) => invoke<void>("unlog_habit", { habitId, date }),
+  listHabitLogs: (start: string, end: string) => invoke<HabitLog[]>("list_habit_logs", { start, end }),
 };

@@ -25,7 +25,10 @@ export type IconName =
   | "bell"
   | "sidebar"
   | "chevronLeft"
-  | "chevronRight";
+  | "chevronRight"
+  | "habit"
+  | "mic"
+  | "repeat";
 
 const paths: Record<IconName, ReactNode> = {
   check: <path d="M5 12.5l4.5 4.5L19 7.5" />,
@@ -145,6 +148,26 @@ const paths: Record<IconName, ReactNode> = {
   ),
   chevronLeft: <path d="M15 18l-6-6 6-6" />,
   chevronRight: <path d="M9 18l6-6-6-6" />,
+  habit: (
+    <>
+      <path d="M12 2a9 9 0 1 0 9 9" />
+      <path d="M12 6v6l4 2" />
+      <circle cx="18.5" cy="5.5" r="2.5" fill="currentColor" stroke="none" />
+    </>
+  ),
+  mic: (
+    <>
+      <rect x="9" y="2" width="6" height="11" rx="3" />
+      <path d="M5 10a7 7 0 0 0 14 0M12 19v3M9 22h6" />
+    </>
+  ),
+  repeat: (
+    <>
+      <polyline points="17 1 21 5 17 9" />
+      <path d="M3 11V9a4 4 0 0 1 4-4h14M7 23l-4-4 4-4" />
+      <path d="M21 13v2a4 4 0 0 1-4 4H3" />
+    </>
+  ),
 };
 
 export function Icon({ name, size = 20 }: { name: IconName; size?: number }) {

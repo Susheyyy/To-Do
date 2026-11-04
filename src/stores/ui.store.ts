@@ -2,7 +2,7 @@ import { create } from "zustand";
 
 import type { Priority } from "../types/models";
 
-export type ListId = "inbox" | "today" | "upcoming" | "filters";
+export type ListId = "inbox" | "today" | "upcoming" | "filters" | "habits" | "calendar";
 export type ViewId = ListId | "settings" | `project:${string}` | `tag:${string}`;
 export type Layout = "list" | "board" | "calendar";
 export type SortKey = "manual" | "priority" | "due" | "name";

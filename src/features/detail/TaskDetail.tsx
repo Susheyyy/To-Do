@@ -199,6 +199,20 @@ function DetailBody({ task, onClose }: { task: Task; onClose: () => void }) {
           />
         </label>
 
+        <label className="field">
+          <span>Repeat</span>
+          <select
+            value={task.recurRule ?? ""}
+            onChange={(e) => save({ recurRule: e.target.value || null })}
+          >
+            <option value="">No repeat</option>
+            <option value="daily">Every day</option>
+            <option value="weekdays">Weekdays</option>
+            <option value="weekly">Every week</option>
+            <option value="monthly">Every month</option>
+          </select>
+        </label>
+
         <div className="subtask-block">
           {task.subtasks.map((sub) => (
             <label key={sub.id} className="subtask">

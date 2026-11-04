@@ -1,19 +1,31 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
+import { readText } from "@tauri-apps/plugin-clipboard-manager";
 import { Icon } from "../../components/Icon";
 import { api } from "../../lib/api";
 import { parseTask } from "../../lib/nlp/parseTask";
 import { useTasks } from "../../stores/tasks.store";
 
+declare global {
+  interface Window {
+    SpeechRecognition: typeof SpeechRecognition;
+    webkitSpeechRecognition: typeof SpeechRecognition;
+  }
+}
+
 export function FloatingBarWindow() {
   const [text, setText] = useState("");
+  const [listening, setListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const createTask = useTasks((s) => s.createTask);
   const ensureProject = useTasks((s) => s.ensureProject);
   const parsed = useMemo(() => parseTask(text), [text]);
+  const recognizerRef = useRef<SpeechRecognition | null>(null);
 
   async function close() {
     setText("");
+    setListening(false);
+    recognizerRef.current?.abort();
     try {
       await api.hideWindow("floating-bar");
     } catch {
@@ -23,14 +35,19 @@ export function FloatingBarWindow() {
 
   useEffect(() => {
     inputRef.current?.focus();
+
+    async function tryPasteSelection() {
+      try {
+        const clip = await readText();
+        if (clip && clip.trim().length > 0 && clip.trim().length < 300) {
+          setText(clip.trim());
+        }
+      } catch {}
+    }
+    void tryPasteSelection();
   }, []);
 
   useEffect(() => {
-    const handleBlur = () => {
-      void close();
-    };
-    window.addEventListener("blur", handleBlur);
-
     let cleanup: (() => void) | undefined;
     getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
@@ -41,10 +58,38 @@ export function FloatingBarWindow() {
       });
 
     return () => {
-      window.removeEventListener("blur", handleBlur);
       cleanup?.();
+      recognizerRef.current?.abort();
     };
   }, []);
+
+  function startVoice() {
+    const SR = window.SpeechRecognition ?? window.webkitSpeechRecognition;
+    if (!SR) return;
+    const recognizer = new SR();
+    recognizer.lang = "en-US";
+    recognizer.interimResults = false;
+    recognizer.maxAlternatives = 1;
+    recognizerRef.current = recognizer;
+
+    recognizer.onstart = () => setListening(true);
+    recognizer.onend = () => setListening(false);
+    recognizer.onerror = () => setListening(false);
+    recognizer.onresult = (e) => {
+      const transcript = e.results[0]?.[0]?.transcript ?? "";
+      if (transcript) setText((prev) => (prev ? `${prev} ${transcript}` : transcript));
+    };
+    recognizer.start();
+  }
+
+  function toggleVoice() {
+    if (listening) {
+      recognizerRef.current?.stop();
+      setListening(false);
+    } else {
+      startVoice();
+    }
+  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();
@@ -59,6 +104,7 @@ export function FloatingBarWindow() {
       projectId,
       sectionId: null,
       tags: parsed.tags,
+      recurRule: null,
     });
     await close();
   }
@@ -75,7 +121,7 @@ export function FloatingBarWindow() {
           className="floating-bar-input"
           value={text}
           onChange={(e) => setText(e.target.value)}
-          placeholder="Task name"
+          placeholder="Task name or speak..."
           aria-label="Task name"
           onKeyDown={(e) => {
             if (e.key === "Escape") void close();
@@ -95,6 +141,16 @@ export function FloatingBarWindow() {
 
         <button
           type="button"
+          className={`floating-bar-mic-btn${listening ? " listening" : ""}`}
+          onClick={toggleVoice}
+          aria-label={listening ? "Stop listening" : "Voice input"}
+          title="Voice input"
+        >
+          <Icon name="mic" size={15} />
+        </button>
+
+        <button
+          type="button"
           className="floating-bar-close-btn"
           onClick={close}
           aria-label="Close"
@@ -106,4 +162,3 @@ export function FloatingBarWindow() {
     </div>
   );
 }
-

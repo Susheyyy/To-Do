@@ -22,6 +22,7 @@ pub struct Task {
     pub section_id: Option<String>,
     pub tags: Vec<String>,
     pub subtasks: Vec<Subtask>,
+    pub recur_rule: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -37,6 +38,7 @@ pub struct TaskInput {
     pub project_id: Option<String>,
     pub section_id: Option<String>,
     pub tags: Vec<String>,
+    pub recur_rule: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -54,4 +56,38 @@ pub struct Project {
     pub name: String,
     pub color: Option<String>,
     pub sections: Vec<Section>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Habit {
+    pub id: String,
+    pub name: String,
+    pub color: Option<String>,
+    pub icon: Option<String>,
+    pub frequency: String,
+    pub custom_days: Option<String>,
+    pub target_streak: i64,
+    pub created_at: String,
+    pub updated_at: String,
+}
+
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HabitInput {
+    pub name: String,
+    pub color: Option<String>,
+    pub icon: Option<String>,
+    pub frequency: String,
+    pub custom_days: Option<String>,
+    pub target_streak: i64,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct HabitLog {
+    pub id: String,
+    pub habit_id: String,
+    pub logged_date: String,
+    pub created_at: String,
 }

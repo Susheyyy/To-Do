@@ -7,12 +7,14 @@ import { ListId, useUi } from "../stores/ui.store";
 import { Icon } from "./Icon";
 import { Mascot } from "./Mascot";
 
-const NAV: { id: ListId | "search"; label: string; icon: "search" | "inbox" | "sun" | "upcoming" | "filter" }[] = [
+const NAV: { id: ListId | "search"; label: string; icon: "search" | "inbox" | "sun" | "upcoming" | "filter" | "calendar" | "habit" }[] = [
   { id: "search", label: "Search", icon: "search" },
   { id: "inbox", label: "Inbox", icon: "inbox" },
   { id: "today", label: "Today", icon: "sun" },
   { id: "upcoming", label: "Upcoming", icon: "upcoming" },
   { id: "filters", label: "Filters & Labels", icon: "filter" },
+  { id: "habits", label: "Habits", icon: "habit" },
+  { id: "calendar", label: "Calendar", icon: "calendar" },
 ];
 
 export function Sidebar() {

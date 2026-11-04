@@ -67,6 +67,7 @@ export function QuickAdd({
       projectId,
       sectionId,
       tags: parsed.tags,
+      recurRule: null,
     });
     setText("");
     onDone?.();

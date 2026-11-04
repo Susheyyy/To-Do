@@ -12,7 +12,6 @@ type Tab = "pending" | "completed";
 export function QuickCaptureWindow() {
   const [tab, setTab] = useState<Tab>("pending");
   const todayTasks = useTasks((s) => s.today);
-  const overdueTasks = useTasks((s) => s.overdue);
   const completedToday = useTasks((s) => s.completedToday);
   const toggleTask = useTasks((s) => s.toggleTask);
   const load = useTasks((s) => s.load);
