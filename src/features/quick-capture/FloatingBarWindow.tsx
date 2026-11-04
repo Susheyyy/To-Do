@@ -1,6 +1,7 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Icon } from "../../components/Icon";
+import { api } from "../../lib/api";
 import { parseTask } from "../../lib/nlp/parseTask";
 import { useTasks } from "../../stores/tasks.store";
 
@@ -11,34 +12,39 @@ export function FloatingBarWindow() {
   const ensureProject = useTasks((s) => s.ensureProject);
   const parsed = useMemo(() => parseTask(text), [text]);
 
+  async function close() {
+    setText("");
+    try {
+      await api.hideWindow("floating-bar");
+    } catch {
+      void getCurrentWindow().hide();
+    }
+  }
+
   useEffect(() => {
     inputRef.current?.focus();
   }, []);
 
   useEffect(() => {
-    let timer: number | undefined;
-    let cleanup: (() => void) | undefined;
+    const handleBlur = () => {
+      void close();
+    };
+    window.addEventListener("blur", handleBlur);
 
-    timer = window.setTimeout(() => {
-      getCurrentWindow()
-        .onFocusChanged(({ payload: focused }) => {
-          if (!focused) void getCurrentWindow().hide();
-        })
-        .then((unlisten) => {
-          cleanup = unlisten;
-        });
-    }, 400);
+    let cleanup: (() => void) | undefined;
+    getCurrentWindow()
+      .onFocusChanged(({ payload: focused }) => {
+        if (!focused) void close();
+      })
+      .then((unlisten) => {
+        cleanup = unlisten;
+      });
 
     return () => {
-      if (timer) clearTimeout(timer);
+      window.removeEventListener("blur", handleBlur);
       cleanup?.();
     };
   }, []);
-
-  async function close() {
-    setText("");
-    await getCurrentWindow().hide();
-  }
 
   async function submit(e: FormEvent) {
     e.preventDefault();

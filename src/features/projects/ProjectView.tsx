@@ -54,12 +54,23 @@ export function ProjectView({ projectId }: { projectId: string }) {
   const doneTasks = tasks.filter((t) => t.completedAt !== null);
 
   const groups = [
-    {
-      key: "none",
-      sectionId: null as string | null,
-      title: "Tasks",
-      tasks: sortTasks(openTasks.filter((t) => !t.sectionId), sort),
-    },
+    ...(openTasks.some((t) => !t.sectionId) || project.sections.length > 0
+      ? [
+          {
+            key: "none",
+            sectionId: null as string | null,
+            title: project.sections.length > 0 ? "Tasks" : "",
+            tasks: sortTasks(openTasks.filter((t) => !t.sectionId), sort),
+          },
+        ]
+      : [
+          {
+            key: "none",
+            sectionId: null as string | null,
+            title: "",
+            tasks: sortTasks(openTasks, sort),
+          },
+        ]),
     ...project.sections.map((s) => ({
       key: s.id,
       sectionId: s.id as string | null,
@@ -108,25 +119,27 @@ export function ProjectView({ projectId }: { projectId: string }) {
         <div style={{ marginTop: 16 }}>
           {groups.map((g) => (
             <section key={g.key} className="group">
-              <SectionTitle
-                title={g.title}
-                count={g.tasks.length}
-                collapsed={!!collapsed[g.key]}
-                onToggle={() => toggle(g.key)}
-                onRename={g.sectionId ? (name) => void renameSection(g.sectionId!, name) : undefined}
-                onDelete={
-                  g.sectionId
-                    ? () => {
-                        void useConfirm
-                          .getState()
-                          .ask(`Delete section "${g.title}"? Its tasks move to the top.`)
-                          .then((ok) => {
-                            if (ok) void deleteSection(g.sectionId!);
-                          });
-                      }
-                    : undefined
-                }
-              />
+              {g.title ? (
+                <SectionTitle
+                  title={g.title}
+                  count={g.tasks.length}
+                  collapsed={!!collapsed[g.key]}
+                  onToggle={() => toggle(g.key)}
+                  onRename={g.sectionId ? (name) => void renameSection(g.sectionId!, name) : undefined}
+                  onDelete={
+                    g.sectionId
+                      ? () => {
+                          void useConfirm
+                            .getState()
+                            .ask(`Delete section "${g.title}"? Its tasks move to the top.`)
+                            .then((ok) => {
+                              if (ok) void deleteSection(g.sectionId!);
+                            });
+                        }
+                      : undefined
+                  }
+                />
+              ) : null}
               {!collapsed[g.key] && (
                 <>
                   <div className="task-list">

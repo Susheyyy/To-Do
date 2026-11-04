@@ -16,13 +16,25 @@ export function AddInline({
 
   if (open) {
     return (
-      <QuickAdd
-        defaultDue={due}
-        defaultProjectId={projectId}
-        sectionId={sectionId}
-        autoFocus
-        onDone={() => setOpen(false)}
-      />
+      <div className="inline-quickadd-box">
+        <QuickAdd
+          defaultDue={due}
+          defaultProjectId={projectId}
+          sectionId={sectionId}
+          autoFocus
+          variant="clean"
+          onDone={() => setOpen(false)}
+        />
+        <div className="inline-quickadd-actions">
+          <button
+            type="button"
+            className="inline-cancel-btn"
+            onClick={() => setOpen(false)}
+          >
+            Cancel
+          </button>
+        </div>
+      </div>
     );
   }
 

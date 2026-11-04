@@ -38,19 +38,21 @@ export function QuickAdd({
 
   const due = parsed.dueDate ?? defaultDue;
 
-  const chips = [
-    due ? `Due ${format(parseISO(due), "d MMM")}` : null,
-    parsed.dueTime ? `at ${formatTime(parsed.dueTime, clock)}` : null,
-    parsed.priority !== "none"
-      ? parsed.priority === "high"
-        ? "Priority 1"
-        : parsed.priority === "medium"
-        ? "Priority 2"
-        : "Priority 3"
-      : null,
-    parsed.projectName ? `#${parsed.projectName}` : null,
-    ...parsed.tags.map((t) => `@${t}`),
-  ].filter((c): c is string => Boolean(c));
+  const chips = text.trim()
+    ? [
+        parsed.dueDate ? `Due ${format(parseISO(parsed.dueDate), "d MMM")}` : null,
+        parsed.dueTime ? `at ${formatTime(parsed.dueTime, clock)}` : null,
+        parsed.priority !== "none"
+          ? parsed.priority === "high"
+            ? "Priority 1"
+            : parsed.priority === "medium"
+            ? "Priority 2"
+            : "Priority 3"
+          : null,
+        parsed.projectName ? `#${parsed.projectName}` : null,
+        ...parsed.tags.map((t) => `@${t}`),
+      ].filter((c): c is string => Boolean(c))
+    : [];
 
   async function submit(e: FormEvent) {
     e.preventDefault();

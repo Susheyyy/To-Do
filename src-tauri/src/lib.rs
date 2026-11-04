@@ -12,7 +12,7 @@ use tauri::{
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     Manager,
 };
-use tauri_plugin_autostart::MacosLauncher;
+use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
 use commands::{history, projects, tasks, tray};
@@ -111,6 +111,11 @@ pub fn run() {
                 })?;
 
             let args: Vec<String> = std::env::args().collect();
+            let autolaunch = app.autolaunch();
+            if !autolaunch.is_enabled().unwrap_or(false) {
+                let _ = autolaunch.enable();
+            }
+
             if args.iter().any(|a| a == "--quick" || a == "-q") {
                 if let Some(win) = app.get_webview_window("quick-capture") {
                     let _ = win.show();
@@ -147,6 +152,7 @@ pub fn run() {
             history::undo,
             history::redo,
             tray::update_tray_badge,
+            tray::hide_window,
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

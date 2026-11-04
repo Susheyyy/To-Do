@@ -39,9 +39,14 @@ export function NotificationManager() {
   const openTasks = useTasks((s) => s.open);
   const todayTasks = useTasks((s) => s.today);
   const overdueTasks = useTasks((s) => s.overdue);
+  const load = useTasks((s) => s.load);
 
   const notifiedTasksRef = useRef<Set<string>>(new Set());
   const briefingDateRef = useRef<string>("");
+
+  useEffect(() => {
+    void load();
+  }, [load]);
 
   useEffect(() => {
     async function checkPermission() {
@@ -80,11 +85,21 @@ export function NotificationManager() {
         briefingDateRef.current !== todayDateStr
       ) {
         briefingDateRef.current = todayDateStr;
-        const totalPending = todayTasks.length + overdueTasks.length;
-        const body =
-          totalPending === 0
-            ? "You have no tasks scheduled for today!"
-            : `You have ${totalPending} task${totalPending > 1 ? "s" : ""} due today (${overdueTasks.length} overdue).`;
+        await load();
+        const currentOverdue = useTasks.getState().overdue;
+        const currentToday = useTasks.getState().today;
+        const totalPending = currentToday.length + currentOverdue.length;
+
+        let body = "";
+        if (totalPending === 0) {
+          body = "You have no tasks scheduled for today!";
+        } else if (currentOverdue.length > 0 && currentToday.length > 0) {
+          body = `You have ${currentToday.length} task${currentToday.length > 1 ? "s" : ""} due today and ${currentOverdue.length} overdue task${currentOverdue.length > 1 ? "s" : ""}.`;
+        } else if (currentOverdue.length > 0) {
+          body = `You have ${currentOverdue.length} overdue task${currentOverdue.length > 1 ? "s" : ""} to catch up on!`;
+        } else {
+          body = `You have ${currentToday.length} task${currentToday.length > 1 ? "s" : ""} due today.`;
+        }
 
         try {
           sendNotification({

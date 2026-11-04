@@ -1,4 +1,4 @@
-use tauri::AppHandle;
+use tauri::{AppHandle, Manager};
 
 #[tauri::command]
 pub fn update_tray_badge(app: AppHandle, count: usize) -> Result<(), String> {
@@ -13,3 +13,10 @@ pub fn update_tray_badge(app: AppHandle, count: usize) -> Result<(), String> {
     Ok(())
 }
 
+#[tauri::command]
+pub fn hide_window(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(&label) {
+        win.hide().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

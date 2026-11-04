@@ -27,4 +27,5 @@ export const api = {
   undo: () => invoke<string | null>("undo"),
   redo: () => invoke<string | null>("redo"),
   updateTrayBadge: (count: number) => invoke<void>("update_tray_badge", { count }),
+  hideWindow: (label: string) => invoke<void>("hide_window", { label }),
 };

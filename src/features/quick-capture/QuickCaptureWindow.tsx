@@ -3,6 +3,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { format } from "date-fns";
 import { Icon } from "../../components/Icon";
 import { QuickAdd } from "../../components/QuickAdd";
+import { api } from "../../lib/api";
 import { useTasks } from "../../stores/tasks.store";
 import type { Task } from "../../types/models";
 
@@ -10,7 +11,8 @@ type Tab = "pending" | "completed";
 
 export function QuickCaptureWindow() {
   const [tab, setTab] = useState<Tab>("pending");
-  const openTasks = useTasks((s) => s.open);
+  const todayTasks = useTasks((s) => s.today);
+  const overdueTasks = useTasks((s) => s.overdue);
   const completedToday = useTasks((s) => s.completedToday);
   const toggleTask = useTasks((s) => s.toggleTask);
   const load = useTasks((s) => s.load);
@@ -33,9 +35,18 @@ export function QuickCaptureWindow() {
     };
   }, []);
 
+  async function closeWindow() {
+    try {
+      await api.hideWindow("quick-capture");
+    } catch {
+      void getCurrentWindow().hide();
+    }
+  }
+
   const currentDateHeader = format(new Date(), "MMMM d, EEEE");
 
-  const filteredTasks: Task[] = tab === "pending" ? openTasks : completedToday;
+  const pendingToday = todayTasks;
+  const filteredTasks: Task[] = tab === "pending" ? pendingToday : completedToday;
 
   return (
     <div className="popup-card">
@@ -43,7 +54,7 @@ export function QuickCaptureWindow() {
         <span className="popup-date">{currentDateHeader}</span>
         <button
           className="popup-settings-btn"
-          onClick={() => void getCurrentWindow().hide()}
+          onClick={closeWindow}
           title="Close"
           aria-label="Close"
         >
@@ -93,7 +104,7 @@ export function QuickCaptureWindow() {
 
       <div className="popup-footer">
         <QuickAdd
-          defaultDue={null}
+          defaultDue={format(new Date(), "yyyy-MM-dd")}
           defaultProjectId={null}
           placeholder="Add new todo"
           variant="clean"
