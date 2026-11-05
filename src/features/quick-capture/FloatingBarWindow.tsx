@@ -21,6 +21,8 @@ export function FloatingBarWindow() {
   const parsed = useMemo(() => parseTask(text), [text]);
   const recognizerRef = useRef<any>(null);
 
+  const isDraggingRef = useRef<boolean>(false);
+
   async function close() {
     setText("");
     setListening(false);
@@ -52,7 +54,7 @@ export function FloatingBarWindow() {
     let cleanup: (() => void) | undefined;
     getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
-        if (!focused) void close();
+        if (!focused && !isDraggingRef.current) void close();
       })
       .then((unlisten) => {
         cleanup = unlisten;
@@ -92,6 +94,17 @@ export function FloatingBarWindow() {
     }
   }
 
+  async function startDrag() {
+    isDraggingRef.current = true;
+    try {
+      await getCurrentWindow().startDragging();
+    } finally {
+      setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 300);
+    }
+  }
+
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!parsed.title) return;
@@ -111,9 +124,19 @@ export function FloatingBarWindow() {
   }
 
   return (
-    <div className="floating-bar-container">
-      <form className="floating-bar-capsule" onSubmit={submit}>
-        <button type="button" className="floating-bar-add-icon" tabIndex={-1}>
+    <div
+      className="floating-bar-container"
+      data-tauri-drag-region
+      onMouseDown={(e) => {
+        // Allow drag when clicking on the container or the + icon, but not on input/buttons
+        const tag = (e.target as HTMLElement).tagName.toLowerCase();
+        if (e.button === 0 && tag !== "input" && tag !== "button" && tag !== "svg" && tag !== "path") {
+          void startDrag();
+        }
+      }}
+    >
+      <form className="floating-bar-capsule" onSubmit={submit} data-tauri-drag-region>
+        <button type="button" className="floating-bar-add-icon" tabIndex={-1} data-tauri-drag-region>
           <Icon name="plus" size={15} />
         </button>
 
@@ -128,17 +151,6 @@ export function FloatingBarWindow() {
             if (e.key === "Escape") void close();
           }}
         />
-
-        {text.length > 0 && (
-          <button
-            type="button"
-            className="floating-bar-clear-btn"
-            onClick={() => setText("")}
-            aria-label="Clear"
-          >
-            <Icon name="close" size={14} />
-          </button>
-        )}
 
         <button
           type="button"

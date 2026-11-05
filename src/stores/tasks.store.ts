@@ -1,4 +1,5 @@
 import { addDays, format, startOfDay } from "date-fns";
+import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
 
 import { api } from "../lib/api";
@@ -137,3 +138,9 @@ export const useTasks = create<TasksState>((set, get) => {
     redo: () => guard(() => api.redo()),
   };
 });
+
+if (typeof window !== "undefined") {
+  listen("tasks-changed", () => {
+    void useTasks.getState().load();
+  }).catch(() => {});
+}

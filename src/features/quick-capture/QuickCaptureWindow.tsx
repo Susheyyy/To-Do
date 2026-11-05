@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { format } from "date-fns";
 import { Icon } from "../../components/Icon";
@@ -15,6 +15,7 @@ export function QuickCaptureWindow() {
   const completedToday = useTasks((s) => s.completedToday);
   const toggleTask = useTasks((s) => s.toggleTask);
   const load = useTasks((s) => s.load);
+  const isDraggingRef = useRef(false);
 
   useEffect(() => {
     void load();
@@ -24,7 +25,8 @@ export function QuickCaptureWindow() {
     let cleanup: (() => void) | undefined;
     getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
-        if (!focused) void getCurrentWindow().hide();
+        // Don't hide while the user is dragging the window
+        if (!focused && !isDraggingRef.current) void getCurrentWindow().hide();
       })
       .then((unlisten) => {
         cleanup = unlisten;
@@ -33,6 +35,18 @@ export function QuickCaptureWindow() {
       cleanup?.();
     };
   }, []);
+
+  async function startDrag() {
+    isDraggingRef.current = true;
+    try {
+      await getCurrentWindow().startDragging();
+    } finally {
+      // After drag ends focus returns; reset flag after a small delay
+      setTimeout(() => {
+        isDraggingRef.current = false;
+      }, 300);
+    }
+  }
 
   async function closeWindow() {
     try {
@@ -49,8 +63,17 @@ export function QuickCaptureWindow() {
 
   return (
     <div className="popup-card">
-      <div className="popup-topbar">
-        <span className="popup-date">{currentDateHeader}</span>
+      <div
+        className="popup-topbar"
+        data-tauri-drag-region
+        onMouseDown={(e) => {
+          // Only drag on primary button, not on close button clicks
+          if (e.button === 0 && !(e.target as HTMLElement).closest("button")) {
+            void startDrag();
+          }
+        }}
+      >
+        <span className="popup-date" data-tauri-drag-region>{currentDateHeader}</span>
         <button
           className="popup-settings-btn"
           onClick={closeWindow}
