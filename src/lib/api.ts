@@ -38,4 +38,5 @@ export const api = {
   createBackup: () => invoke<string>("create_backup"),
   exportJson: () => invoke<string>("export_json"),
   exportCsv: () => invoke<string>("export_csv"),
+  generateRecurring: () => invoke<number>("generate_recurring"),
 };

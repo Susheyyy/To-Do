@@ -185,7 +185,7 @@ pub fn update(conn: &mut Connection, id: &str, input: TaskInput) -> AppResult<Ta
     get(conn, id)
 }
 
-pub fn set_completed(conn: &Connection, id: &str, done: bool) -> AppResult<Task> {
+pub fn set_completed(conn: &mut Connection, id: &str, done: bool) -> AppResult<Task> {
     let completed_at = if done { Some(now()) } else { None };
     let changed = conn.execute(
         "UPDATE tasks SET completed_at = ?2, updated_at = ?3 WHERE id = ?1 AND deleted_at IS NULL",
@@ -194,7 +194,31 @@ pub fn set_completed(conn: &Connection, id: &str, done: bool) -> AppResult<Task>
     if changed == 0 {
         return Err(AppError::NotFound(format!("task {id}")));
     }
-    get(conn, id)
+    let task = get(conn, id)?;
+
+    // If task was completed (done = true) and has a recur_rule, create the next occurrence!
+    if done {
+        if let Some(rule) = &task.recur_rule {
+            let today_str = Utc::now().format("%Y-%m-%d").to_string();
+            let base_date = task.due_date.as_deref().unwrap_or(&today_str);
+            if let Some(next_date) = crate::db::recur::next_due(base_date, rule) {
+                let next_input = TaskInput {
+                    title: task.title.clone(),
+                    notes: task.notes.clone(),
+                    priority: task.priority.clone(),
+                    due_date: Some(next_date),
+                    due_time: task.due_time.clone(),
+                    project_id: task.project_id.clone(),
+                    section_id: task.section_id.clone(),
+                    tags: task.tags.clone(),
+                    recur_rule: Some(rule.clone()),
+                };
+                let _ = create(conn, next_input);
+            }
+        }
+    }
+
+    Ok(task)
 }
 
 pub fn soft_delete(conn: &Connection, id: &str) -> AppResult<()> {
@@ -358,6 +382,73 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
     Ok(())
 }
 
+
+pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
+    let today_str = Utc::now().format("%Y-%m-%d").to_string();
+    
+    // Find open tasks with a recur_rule whose due_date is in the past (< today_str)
+    let overdue_recurring: Vec<Task> = collect(
+        conn,
+        "SELECT id FROM tasks 
+         WHERE recur_rule IS NOT NULL 
+           AND recur_rule != '' 
+           AND due_date IS NOT NULL 
+           AND due_date < ?1 
+           AND completed_at IS NULL 
+           AND deleted_at IS NULL",
+        &[&today_str],
+    )?;
+
+    let mut generated_count = 0;
+    for task in overdue_recurring {
+        let rule = task.recur_rule.as_ref().unwrap();
+        let mut curr_due = task.due_date.clone().unwrap();
+
+        // Advance until curr_due >= today_str or safely limit iterations to prevent infinite loop
+        let mut iterations = 0;
+        let mut next_due_opt = crate::db::recur::next_due(&curr_due, rule);
+        
+        while let Some(next_due) = next_due_opt {
+            iterations += 1;
+            if iterations > 365 {
+                break;
+            }
+            if next_due.as_str() >= today_str.as_str() {
+                // Check if an open or completed task with same title and next_due already exists
+                let exists: bool = conn.query_row(
+                    "SELECT EXISTS(
+                        SELECT 1 FROM tasks 
+                        WHERE title = ?1 AND due_date = ?2 AND deleted_at IS NULL
+                    )",
+                    params![task.title.trim(), next_due],
+                    |row| row.get(0),
+                )?;
+
+                if !exists {
+                    let next_input = TaskInput {
+                        title: task.title.clone(),
+                        notes: task.notes.clone(),
+                        priority: task.priority.clone(),
+                        due_date: Some(next_due),
+                        due_time: task.due_time.clone(),
+                        project_id: task.project_id.clone(),
+                        section_id: task.section_id.clone(),
+                        tags: task.tags.clone(),
+                        recur_rule: Some(rule.clone()),
+                    };
+                    let _ = create(conn, next_input);
+                    generated_count += 1;
+                }
+                break;
+            } else {
+                curr_due = next_due;
+                next_due_opt = crate::db::recur::next_due(&curr_due, rule);
+            }
+        }
+    }
+
+    Ok(generated_count)
+}
 
 pub fn list_completed_between(conn: &Connection, start: &str, end: &str) -> AppResult<Vec<Task>> {
     collect(

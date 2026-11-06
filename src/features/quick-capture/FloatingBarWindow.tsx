@@ -118,7 +118,7 @@ export function FloatingBarWindow() {
       projectId,
       sectionId: null,
       tags: parsed.tags,
-      recurRule: null,
+      recurRule: parsed.recurRule,
     });
     await close();
   }

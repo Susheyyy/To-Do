@@ -6,6 +6,7 @@ mod services;
 mod state;
 
 use std::sync::Mutex;
+use std::time::Duration;
 
 use tauri::{
     menu::{Menu, MenuItem},
@@ -43,7 +44,8 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .setup(|app| {
             let dir = app.path().app_data_dir()?;
-            let conn = db::open(&dir).map_err(|e| e.to_string())?;
+            let mut conn = db::open(&dir).map_err(|e| e.to_string())?;
+            let _ = db::tasks_repo::generate_missed_recurring(&mut conn);
             app.manage(AppState {
                 db: Mutex::new(conn),
                 history: Mutex::new(History::default()),
@@ -133,6 +135,25 @@ pub fn run() {
                 }
             }
 
+            // ── Auto-backup background thread ────────────────────────────────
+            // Runs every 30 minutes while the app is open. Opens its own fresh
+            // SQLite connection (not the shared Mutex one) so it never blocks
+            // the UI thread. Keeps up to 7 rolling backups.
+            {
+                let app_data_dir = app.path().app_data_dir()?;
+                std::thread::spawn(move || {
+                    // 5-minute initial delay so startup I/O settles first.
+                    std::thread::sleep(Duration::from_secs(5 * 60));
+                    loop {
+                        match db::create_auto_backup(&app_data_dir) {
+                            Ok(path) => eprintln!("[backup] auto-backup → {:?}", path),
+                            Err(e) => eprintln!("[backup] auto-backup failed: {e}"),
+                        }
+                        std::thread::sleep(Duration::from_secs(30 * 60));
+                    }
+                });
+            }
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -148,6 +169,7 @@ pub fn run() {
             tasks::list_tasks_for_project,
             tasks::list_tasks_for_tag,
             tasks::list_completed_between,
+            tasks::generate_recurring,
             projects::create_project,
             projects::list_projects,
             projects::delete_project,
@@ -167,6 +189,8 @@ pub fn run() {
             habits::unlog_habit,
             habits::list_habit_logs,
             backup::create_backup,
+            backup::list_backups,
+            backup::restore_backup,
             export::export_json,
             export::export_csv,
         ])

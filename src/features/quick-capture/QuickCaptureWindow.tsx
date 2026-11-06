@@ -12,6 +12,7 @@ type Tab = "pending" | "completed";
 export function QuickCaptureWindow() {
   const [tab, setTab] = useState<Tab>("pending");
   const todayTasks = useTasks((s) => s.today);
+  const overdueTasks = useTasks((s) => s.overdue);
   const completedToday = useTasks((s) => s.completedToday);
   const toggleTask = useTasks((s) => s.toggleTask);
   const load = useTasks((s) => s.load);
@@ -21,12 +22,16 @@ export function QuickCaptureWindow() {
     void load();
   }, [load]);
 
+  // When popup gains focus or becomes visible, reload tasks and check recurring to ensure it is in sync
   useEffect(() => {
     let cleanup: (() => void) | undefined;
     getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
-        // Don't hide while the user is dragging the window
-        if (!focused && !isDraggingRef.current) void getCurrentWindow().hide();
+        if (focused) {
+          void load();
+        } else if (!isDraggingRef.current) {
+          void getCurrentWindow().hide();
+        }
       })
       .then((unlisten) => {
         cleanup = unlisten;
@@ -34,7 +39,20 @@ export function QuickCaptureWindow() {
     return () => {
       cleanup?.();
     };
-  }, []);
+  }, [load]);
+
+  // Periodic date-check timer: every 30 seconds, if the day changed or interval elapsed, reload
+  useEffect(() => {
+    let lastDate = format(new Date(), "yyyy-MM-dd");
+    const interval = setInterval(() => {
+      const now = format(new Date(), "yyyy-MM-dd");
+      if (now !== lastDate) {
+        lastDate = now;
+        void load();
+      }
+    }, 30000);
+    return () => clearInterval(interval);
+  }, [load]);
 
   async function startDrag() {
     isDraggingRef.current = true;
@@ -57,9 +75,11 @@ export function QuickCaptureWindow() {
   }
 
   const currentDateHeader = format(new Date(), "MMMM d, EEEE");
+  const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  const pendingToday = todayTasks;
-  const filteredTasks: Task[] = tab === "pending" ? pendingToday : completedToday;
+  // Pending tasks include overdue tasks and today's tasks
+  const pendingTasks = [...overdueTasks, ...todayTasks.filter((t) => !overdueTasks.some((o) => o.id === t.id))];
+  const filteredTasks: Task[] = tab === "pending" ? pendingTasks : completedToday;
 
   return (
     <div className="popup-card">
@@ -106,6 +126,7 @@ export function QuickCaptureWindow() {
           <div className="popup-group-items">
             {filteredTasks.map((task) => {
               const isDone = task.completedAt !== null;
+              const isOverdue = !isDone && task.dueDate !== null && task.dueDate < todayStr;
               return (
                 <label key={task.id} className="popup-item">
                   <input
@@ -116,6 +137,7 @@ export function QuickCaptureWindow() {
                   />
                   <span className={`popup-item-title ${isDone ? "is-done" : ""}`}>
                     {task.title}
+                    {isOverdue && <span className="popup-overdue-tag">(Overdue)</span>}
                   </span>
                 </label>
               );

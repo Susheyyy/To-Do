@@ -1908,6 +1908,13 @@ button {
   opacity: 0.45;
 }
 
+.popup-overdue-tag {
+  color: var(--color-accent);
+  font-weight: 600;
+  margin-left: 6px;
+  font-size: 12px;
+}
+
 .popup-empty-msg {
   text-align: center;
   color: var(--color-muted);

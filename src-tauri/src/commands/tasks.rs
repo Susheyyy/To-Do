@@ -33,9 +33,9 @@ pub fn update_task(app: AppHandle, state: State<'_, AppState>, id: String, input
 
 #[tauri::command]
 pub fn set_task_completed(app: AppHandle, state: State<'_, AppState>, id: String, done: bool) -> AppResult<Task> {
-    let conn = state.conn()?;
+    let mut conn = state.conn()?;
     let before = capture_task(&conn, &id)?;
-    let task = tasks_repo::set_completed(&conn, &id, done)?;
+    let task = tasks_repo::set_completed(&mut conn, &id, done)?;
     let label = if done { "Complete task" } else { "Reopen task" };
     state.history()?.record(label, vec![before]);
     let _ = app.emit("tasks-changed", ());
@@ -106,6 +106,16 @@ pub fn list_tasks_for_project(state: State<'_, AppState>, project_id: String) ->
 pub fn list_tasks_for_tag(state: State<'_, AppState>, tag: String) -> AppResult<Vec<Task>> {
     let conn = state.conn()?;
     tasks_repo::list_for_tag(&conn, &tag)
+}
+
+#[tauri::command]
+pub fn generate_recurring(app: AppHandle, state: State<'_, AppState>) -> AppResult<usize> {
+    let mut conn = state.conn()?;
+    let count = tasks_repo::generate_missed_recurring(&mut conn)?;
+    if count > 0 {
+        let _ = app.emit("tasks-changed", ());
+    }
+    Ok(count)
 }
 
 #[tauri::command]

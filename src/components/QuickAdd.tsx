@@ -100,7 +100,7 @@ export function QuickAdd({
       projectId,
       sectionId,
       tags: parsed.tags,
-      recurRule: null,
+      recurRule: parsed.recurRule,
     });
     setText("");
     onDone?.();
