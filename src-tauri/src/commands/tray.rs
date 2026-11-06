@@ -20,3 +20,11 @@ pub fn hide_window(app: AppHandle, label: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn start_dragging(app: AppHandle, label: String) -> Result<(), String> {
+    if let Some(win) = app.get_webview_window(&label) {
+        win.start_dragging().map_err(|e| e.to_string())?;
+    }
+    Ok(())
+}

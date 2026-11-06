@@ -97,6 +97,8 @@ export function FloatingBarWindow() {
   async function startDrag() {
     isDraggingRef.current = true;
     try {
+      await api.startDragging("floating-bar");
+    } catch {
       await getCurrentWindow().startDragging();
     } finally {
       setTimeout(() => {

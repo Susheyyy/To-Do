@@ -28,6 +28,7 @@ export const api = {
   redo: () => invoke<string | null>("redo"),
   updateTrayBadge: (count: number) => invoke<void>("update_tray_badge", { count }),
   hideWindow: (label: string) => invoke<void>("hide_window", { label }),
+  startDragging: (label: string) => invoke<void>("start_dragging", { label }),
   listHabits: () => invoke<Habit[]>("list_habits"),
   createHabit: (input: HabitInput) => invoke<Habit>("create_habit", { input }),
   updateHabit: (id: string, input: HabitInput) => invoke<Habit>("update_habit", { id, input }),

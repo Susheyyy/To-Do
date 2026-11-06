@@ -17,6 +17,12 @@ interface Props {
   onDone?: () => void;
 }
 
+interface ChipItem {
+  id: string;
+  label: string;
+  icon?: "repeat";
+}
+
 export function QuickAdd({
   defaultDue,
   defaultProjectId = null,
@@ -71,20 +77,48 @@ export function QuickAdd({
 
   const due = parsed.dueDate ?? defaultDue;
 
-  const chips = text.trim()
+  const chips: ChipItem[] = text.trim()
     ? [
-        parsed.dueDate ? `Due ${format(parseISO(parsed.dueDate), "d MMM")}` : null,
-        parsed.dueTime ? `at ${formatTime(parsed.dueTime, clock)}` : null,
-        parsed.priority !== "none"
-          ? parsed.priority === "high"
-            ? "Priority 1"
-            : parsed.priority === "medium"
-            ? "Priority 2"
-            : "Priority 3"
+        parsed.recurRule
+          ? {
+              id: "recur",
+              label: parsed.recurRule,
+              icon: "repeat" as const,
+            }
+          : parsed.dueDate
+          ? {
+              id: "due",
+              label: `Due ${format(parseISO(parsed.dueDate), "d MMM")}`,
+            }
           : null,
-        parsed.projectName ? `#${parsed.projectName}` : null,
-        ...parsed.tags.map((t) => `@${t}`),
-      ].filter((c): c is string => Boolean(c))
+        parsed.dueTime
+          ? {
+              id: "time",
+              label: `at ${formatTime(parsed.dueTime, clock)}`,
+            }
+          : null,
+        parsed.priority !== "none"
+          ? {
+              id: "priority",
+              label:
+                parsed.priority === "high"
+                  ? "Priority 1"
+                  : parsed.priority === "medium"
+                  ? "Priority 2"
+                  : "Priority 3",
+            }
+          : null,
+        parsed.projectName
+          ? {
+              id: "project",
+              label: `#${parsed.projectName}`,
+            }
+          : null,
+        ...parsed.tags.map((t) => ({
+          id: `tag-${t}`,
+          label: `@${t}`,
+        })),
+      ].filter((c): c is ChipItem => Boolean(c))
     : [];
 
   async function submit(e: FormEvent) {
@@ -131,8 +165,9 @@ export function QuickAdd({
       {chips.length > 0 && (
         <div className="preview">
           {chips.map((chip) => (
-            <span key={chip} className="pill">
-              {chip}
+            <span key={chip.id} className="pill">
+              {chip.icon && <Icon name={chip.icon} size={12} />}
+              <span>{chip.label}</span>
             </span>
           ))}
         </div>

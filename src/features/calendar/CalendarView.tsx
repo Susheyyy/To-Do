@@ -15,6 +15,7 @@ import {
 import { Icon } from "../../components/Icon";
 import { useTasks, todayIso } from "../../stores/tasks.store";
 import { useUi } from "../../stores/ui.store";
+import { taskOccursOnDate } from "../../lib/recurrence";
 
 const HOURS = Array.from({ length: 24 }, (_, i) => i);
 
@@ -47,7 +48,7 @@ export function CalendarView() {
   const calendarEnd = endOfWeek(monthEnd, { weekStartsOn: 1 });
   const monthDays = eachDayOfInterval({ start: calendarStart, end: calendarEnd });
 
-  const tasksForSelectedDay = open.filter((t) => t.dueDate === selectedDate);
+  const tasksForSelectedDay = open.filter((t) => taskOccursOnDate(t, selectedDate));
   const today = todayIso();
 
   async function handleCreateTimeBlock(e: React.FormEvent) {
@@ -132,7 +133,7 @@ export function CalendarView() {
               const isCurrentMonth = isSameMonth(d, currentDate);
               const isSelected = selectedDate === dIso;
               const isToday = dIso === today;
-              const dayTasks = open.filter((t) => t.dueDate === dIso);
+              const dayTasks = open.filter((t) => taskOccursOnDate(t, dIso));
 
               return (
                 <div
@@ -150,7 +151,8 @@ export function CalendarView() {
                 >
                   <div className="cal-cell-header">
                     <span className={`cal-cell-day-num ${isToday ? "today-num-badge" : ""}`}>
-                      {format(d, "d")}
+                      <span>{format(d, "d")}</span>
+                      <span className="cal-cell-weekday-label">{format(d, "EEE")}</span>
                     </span>
                     {dayTasks.length > 0 && (
                       <span className="cal-cell-task-count">{dayTasks.length}</span>

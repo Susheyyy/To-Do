@@ -11,6 +11,7 @@ import { sortTasks } from "../../lib/sortTasks";
 import { todayIso, useTasks } from "../../stores/tasks.store";
 import { ListId, useUi } from "../../stores/ui.store";
 import type { Priority, Task } from "../../types/models";
+import { taskOccursOnDate } from "../../lib/recurrence";
 
 const TITLES: Partial<Record<ListId, string>> = {
   inbox: "Inbox",
@@ -61,8 +62,10 @@ export function ListView({ id }: { id: ListId }) {
   const dueNow = applyFilters(rawDueNow);
   const inbox = applyFilters(open.filter((t) => !t.dueDate && !t.projectId));
   const days = Array.from({ length: 7 }, (_, i) => dayIso(i));
-  const tasksOn = (d: string) => applyFilters(open.filter((t) => t.dueDate === d));
-  const later = applyFilters(open.filter((t) => t.dueDate !== null && t.dueDate > days[6]));
+  const tasksOn = (d: string) => applyFilters(open.filter((t) => taskOccursOnDate(t, d)));
+  const later = applyFilters(
+    open.filter((t) => !t.recurRule && t.dueDate !== null && t.dueDate > days[6])
+  );
 
   const isEmpty =
     (id === "inbox" && inbox.length === 0) ||

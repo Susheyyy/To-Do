@@ -181,6 +181,7 @@ pub fn run() {
             history::redo,
             tray::update_tray_badge,
             tray::hide_window,
+            tray::start_dragging,
             habits::create_habit,
             habits::list_habits,
             habits::update_habit,

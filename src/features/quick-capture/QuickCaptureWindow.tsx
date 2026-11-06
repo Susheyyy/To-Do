@@ -30,7 +30,7 @@ export function QuickCaptureWindow() {
         if (focused) {
           void load();
         } else if (!isDraggingRef.current) {
-          void getCurrentWindow().hide();
+          void closeWindow();
         }
       })
       .then((unlisten) => {
@@ -40,6 +40,17 @@ export function QuickCaptureWindow() {
       cleanup?.();
     };
   }, [load]);
+
+  // Global blur event listener on window as an extra safeguard when user clicks outside
+  useEffect(() => {
+    function handleBlur() {
+      if (!isDraggingRef.current) {
+        void closeWindow();
+      }
+    }
+    window.addEventListener("blur", handleBlur);
+    return () => window.removeEventListener("blur", handleBlur);
+  }, []);
 
   // Periodic date-check timer: every 30 seconds, if the day changed or interval elapsed, reload
   useEffect(() => {
@@ -57,6 +68,8 @@ export function QuickCaptureWindow() {
   async function startDrag() {
     isDraggingRef.current = true;
     try {
+      await api.startDragging("quick-capture");
+    } catch {
       await getCurrentWindow().startDragging();
     } finally {
       // After drag ends focus returns; reset flag after a small delay
