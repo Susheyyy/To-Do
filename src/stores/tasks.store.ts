@@ -87,7 +87,51 @@ export const useTasks = create<TasksState>((set, get) => {
     },
     createTask: (input) => guard(() => api.createTask(input)),
     updateTask: (id, input) => guard(() => api.updateTask(id, input)),
-    toggleTask: (task) => guard(() => api.setTaskCompleted(task.id, task.completedAt === null)),
+    toggleTask: async (task) => {
+      const willBeDone = task.completedAt === null;
+      const nowIso = new Date().toISOString();
+      const updatedTask: Task = {
+        ...task,
+        completedAt: willBeDone ? nowIso : null,
+      };
+
+      // 1. Optimistic instant state update in UI
+      const prevOpen = get().open;
+      const prevToday = get().today;
+      const prevOverdue = get().overdue;
+      const prevCompleted = get().completedToday;
+
+      if (willBeDone) {
+        set({
+          open: prevOpen.filter((t) => t.id !== task.id),
+          today: prevToday.filter((t) => t.id !== task.id),
+          overdue: prevOverdue.filter((t) => t.id !== task.id),
+          completedToday: [updatedTask, ...prevCompleted.filter((t) => t.id !== task.id)],
+        });
+      } else {
+        const isToday = task.dueDate === todayIso();
+        const isOverdue = task.dueDate !== null && task.dueDate < todayIso();
+        set({
+          open: [updatedTask, ...prevOpen.filter((t) => t.id !== task.id)],
+          today: isToday ? [updatedTask, ...prevToday.filter((t) => t.id !== task.id)] : prevToday,
+          overdue: isOverdue ? [updatedTask, ...prevOverdue.filter((t) => t.id !== task.id)] : prevOverdue,
+          completedToday: prevCompleted.filter((t) => t.id !== task.id),
+        });
+      }
+
+      // 2. Perform background write, roll back on error
+      try {
+        await api.setTaskCompleted(task.id, willBeDone);
+      } catch (err) {
+        set({
+          open: prevOpen,
+          today: prevToday,
+          overdue: prevOverdue,
+          completedToday: prevCompleted,
+          error: String(err),
+        });
+      }
+    },
     deleteTask: (id) => guard(() => api.deleteTask(id)),
     addSubtask: (taskId, title) => guard(() => api.addSubtask(taskId, title)),
     toggleSubtask: (taskId, subtaskId, done) => guard(() => api.toggleSubtask(taskId, subtaskId, done)),
@@ -130,9 +174,7 @@ export const useTasks = create<TasksState>((set, get) => {
       }),
     rescheduleOverdue: () =>
       guard(async () => {
-        for (const task of get().overdue) {
-          await api.updateTask(task.id, toInput(task, { dueDate: todayIso() }));
-        }
+        await api.rescheduleOverdue(todayIso());
       }),
     undo: () => guard(() => api.undo()),
     redo: () => guard(() => api.redo()),

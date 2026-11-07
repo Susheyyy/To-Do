@@ -170,6 +170,7 @@ pub fn run() {
             tasks::list_tasks_for_tag,
             tasks::list_completed_between,
             tasks::generate_recurring,
+            tasks::reschedule_overdue,
             projects::create_project,
             projects::list_projects,
             projects::delete_project,

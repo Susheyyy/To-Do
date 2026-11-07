@@ -119,6 +119,16 @@ pub fn generate_recurring(app: AppHandle, state: State<'_, AppState>) -> AppResu
 }
 
 #[tauri::command]
+pub fn reschedule_overdue(app: AppHandle, state: State<'_, AppState>, target_date: String) -> AppResult<usize> {
+    let conn = state.conn()?;
+    let count = tasks_repo::reschedule_overdue(&conn, &target_date)?;
+    if count > 0 {
+        let _ = app.emit("tasks-changed", ());
+    }
+    Ok(count)
+}
+
+#[tauri::command]
 pub fn list_completed_between(state: State<'_, AppState>, start: String, end: String) -> AppResult<Vec<Task>> {
     let conn = state.conn()?;
     tasks_repo::list_completed_between(&conn, &start, &end)

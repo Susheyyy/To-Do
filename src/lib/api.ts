@@ -40,4 +40,6 @@ export const api = {
   exportJson: () => invoke<string>("export_json"),
   exportCsv: () => invoke<string>("export_csv"),
   generateRecurring: () => invoke<number>("generate_recurring"),
+  rescheduleOverdue: (targetDate: string) =>
+    invoke<number>("reschedule_overdue", { targetDate }),
 };

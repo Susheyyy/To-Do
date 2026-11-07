@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { format, parseISO, subDays } from "date-fns";
 import { Icon } from "../../components/Icon";
 import { useHabits } from "../../stores/habits.store";
@@ -69,8 +69,17 @@ export function HabitsView() {
     void loadLogs(start, end);
   }, []);
 
+  // O(1) fast lookup Set for habit logs
+  const logSet = useMemo(() => {
+    const s = new Set<string>();
+    for (const l of logs) {
+      s.add(`${l.habitId}:${l.loggedDate}`);
+    }
+    return s;
+  }, [logs]);
+
   function isLogged(habitId: string, date: string) {
-    return logs.some((l) => l.habitId === habitId && l.loggedDate === date);
+    return logSet.has(`${habitId}:${date}`);
   }
 
   function streakCount(habit: Habit): number {

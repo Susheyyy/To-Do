@@ -13,6 +13,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("001_init", include_str!("migrations/001_init.sql")),
     ("002_priority_none", include_str!("migrations/002_priority_none.sql")),
     ("003_recurring_habits", include_str!("migrations/003_recurring_habits.sql")),
+    ("004_perf_indexes", include_str!("migrations/004_perf_indexes.sql")),
 ];
 
 /// Number of automatic backup files to keep.
