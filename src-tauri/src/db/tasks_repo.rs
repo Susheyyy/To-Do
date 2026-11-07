@@ -309,6 +309,39 @@ pub fn soft_delete(conn: &Connection, id: &str) -> AppResult<()> {
     Ok(())
 }
 
+pub fn restore_task(conn: &Connection, id: &str) -> AppResult<()> {
+    let ts = now();
+    let changed = conn.execute(
+        "UPDATE tasks SET deleted_at = NULL, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NOT NULL",
+        params![id, ts],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("task {id}")));
+    }
+    Ok(())
+}
+
+pub fn permanent_delete(conn: &Connection, id: &str) -> AppResult<()> {
+    let changed = conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("task {id}")));
+    }
+    Ok(())
+}
+
+pub fn empty_trash(conn: &Connection) -> AppResult<usize> {
+    let count = conn.execute("DELETE FROM tasks WHERE deleted_at IS NOT NULL", [])?;
+    Ok(count)
+}
+
+pub fn list_trash(conn: &Connection) -> AppResult<Vec<Task>> {
+    collect(
+        conn,
+        &format!("SELECT {SELECT_COLS} FROM tasks WHERE deleted_at IS NOT NULL ORDER BY updated_at DESC"),
+        &[],
+    )
+}
+
 pub fn add_subtask(conn: &Connection, task_id: &str, title: &str) -> AppResult<Task> {
     if title.trim().is_empty() {
         return Err(AppError::Invalid("subtask title is required".into()));

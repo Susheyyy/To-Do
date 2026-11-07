@@ -42,4 +42,8 @@ export const api = {
   generateRecurring: () => invoke<number>("generate_recurring"),
   rescheduleOverdue: (targetDate: string) =>
     invoke<number>("reschedule_overdue", { targetDate }),
+  listTrash: () => invoke<Task[]>("list_trash"),
+  restoreTask: (id: string) => invoke<void>("restore_task", { id }),
+  permanentDeleteTask: (id: string) => invoke<void>("permanent_delete_task", { id }),
+  emptyTrash: () => invoke<number>("empty_trash"),
 };

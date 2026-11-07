@@ -15,12 +15,14 @@ import { ProjectView } from "../projects/ProjectView";
 import { SettingsView } from "../settings/SettingsView";
 import { HabitsView } from "../habits/HabitsView";
 import { CalendarView } from "../calendar/CalendarView";
+import { TrashView } from "../trash/TrashView";
 
 function renderView(view: ViewId) {
   if (view === "settings") return <SettingsView />;
   if (view === "filters") return <FiltersView />;
   if (view === "habits") return <HabitsView />;
   if (view === "calendar") return <CalendarView />;
+  if (view === "trash") return <TrashView />;
   if (view.startsWith("project:")) return <ProjectView projectId={view.slice("project:".length)} />;
   return <ListView id={view as ListId} />;
 }

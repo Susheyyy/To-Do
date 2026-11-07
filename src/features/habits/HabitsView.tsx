@@ -85,10 +85,57 @@ export function HabitsView() {
   function streakCount(habit: Habit): number {
     let streak = 0;
     let cur = parseISO(today);
-    while (true) {
+
+    // Helper: is this date a day when the habit was actually expected?
+    function isScheduledDay(dateObj: Date): boolean {
+      const dayOfWeek = dateObj.getDay(); // 0 = Sun, 1 = Mon, ..., 6 = Sat
+      if (habit.frequency === "weekdays") {
+        return dayOfWeek >= 1 && dayOfWeek <= 5;
+      }
+      if (habit.frequency === "weekly") {
+        return true; // handled at day level or any day
+      }
+      if (habit.frequency === "custom" && habit.customDays) {
+        const allowed = habit.customDays.split(",").map((s) => s.trim());
+        return allowed.includes(String(dayOfWeek));
+      }
+      // "daily" or default
+      return true;
+    }
+
+    // If today is not scheduled and not logged yet, start checking from yesterday so streak isn't lost on weekends
+    const todayStr = format(cur, "yyyy-MM-dd");
+    if (!isLogged(habit.id, todayStr) && !isScheduledDay(cur)) {
+      cur = subDays(cur, 1);
+    } else if (!isLogged(habit.id, todayStr) && isScheduledDay(cur)) {
+      // If today is scheduled and not logged yet, check yesterday to preserve previous active streak until today finishes
+      const yesterday = subDays(cur, 1);
+      const yStr = format(yesterday, "yyyy-MM-dd");
+      if (isLogged(habit.id, yStr)) {
+        cur = yesterday;
+      }
+    }
+
+    // Step backwards up to 365 days
+    for (let i = 0; i < 365; i++) {
       const d = format(cur, "yyyy-MM-dd");
-      if (!isLogged(habit.id, d)) break;
-      streak++;
+      const scheduled = isScheduledDay(cur);
+      const logged = isLogged(habit.id, d);
+
+      if (scheduled) {
+        if (logged) {
+          streak++;
+        } else {
+          // Missed a scheduled day; streak ends
+          break;
+        }
+      } else {
+        // Non-scheduled day (e.g. weekend for weekdays habit)
+        // If logged anyway, bonus count to streak; if not logged, ignore and keep stepping back
+        if (logged) {
+          streak++;
+        }
+      }
       cur = subDays(cur, 1);
     }
     return streak;
