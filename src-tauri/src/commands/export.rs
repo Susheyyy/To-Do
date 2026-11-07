@@ -14,7 +14,7 @@ pub struct FullExportData {
 
 #[tauri::command]
 pub fn export_json(state: State<AppState>) -> AppResult<String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.conn()?;
     let projects = projects_repo::list(&conn)?;
     let tasks = tasks_repo::list_open(&conn)?;
     let data = FullExportData { projects, tasks };
@@ -24,7 +24,7 @@ pub fn export_json(state: State<AppState>) -> AppResult<String> {
 
 #[tauri::command]
 pub fn export_csv(state: State<AppState>) -> AppResult<String> {
-    let conn = state.db.lock().unwrap();
+    let conn = state.conn()?;
     let tasks = tasks_repo::list_open(&conn)?;
     let projects = projects_repo::list(&conn)?;
 

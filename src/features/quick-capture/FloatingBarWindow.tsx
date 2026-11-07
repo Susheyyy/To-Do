@@ -130,9 +130,9 @@ export function FloatingBarWindow() {
       className="floating-bar-container"
       data-tauri-drag-region
       onMouseDown={(e) => {
-        // Allow drag when clicking on the container or the + icon, but not on input/buttons
-        const tag = (e.target as HTMLElement).tagName.toLowerCase();
-        if (e.button === 0 && tag !== "input" && tag !== "button" && tag !== "svg" && tag !== "path") {
+        // Allow drag only when clicking directly on the container/drag handles, not within buttons/inputs/interactive elements
+        const target = e.target as HTMLElement | null;
+        if (e.button === 0 && target && !target.closest("button, input, select, textarea, a, form")) {
           void startDrag();
         }
       }}

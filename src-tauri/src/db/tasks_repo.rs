@@ -1,3 +1,4 @@
+use std::collections::HashMap;
 use chrono::{NaiveDate, NaiveTime, Utc};
 use rusqlite::{params, Connection, OptionalExtension, ToSql};
 use uuid::Uuid;
@@ -6,6 +7,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::{Subtask, Task, TaskInput};
 
 const PRIORITIES: [&str; 4] = ["high", "medium", "low", "none"];
+const SELECT_COLS: &str = "id, title, notes, priority, due_date, due_time, completed_at, project_id, section_id, recur_rule, created_at, updated_at";
 const ORDER: &str = "ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END, due_time, created_at";
 
 fn now() -> String {
@@ -124,11 +126,85 @@ pub fn get(conn: &Connection, id: &str) -> AppResult<Task> {
 }
 
 fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<Task>> {
+    // 1. Fetch all matching tasks in a single query
     let mut stmt = conn.prepare(sql)?;
-    let ids = stmt
-        .query_map(args, |row| row.get::<_, String>(0))?
-        .collect::<Result<Vec<_>, _>>()?;
-    ids.iter().map(|id| get(conn, id)).collect()
+    let mut rows = stmt.query(args)?;
+    let mut tasks = Vec::new();
+    let mut ids = Vec::new();
+
+    while let Some(row) = rows.next()? {
+        let id: String = row.get(0)?;
+        ids.push(id.clone());
+        tasks.push(Task {
+            id,
+            title: row.get(1)?,
+            notes: row.get(2)?,
+            priority: row.get(3)?,
+            due_date: row.get(4)?,
+            due_time: row.get(5)?,
+            completed_at: row.get(6)?,
+            project_id: row.get(7)?,
+            section_id: row.get(8)?,
+            recur_rule: row.get(9)?,
+            tags: Vec::new(),
+            subtasks: Vec::new(),
+            created_at: row.get(10)?,
+            updated_at: row.get(11)?,
+        });
+    }
+
+    if ids.is_empty() {
+        return Ok(tasks);
+    }
+
+    // 2. Batch load all tags for these tasks in 1 query
+    let placeholders: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
+    let tags_sql = format!(
+        "SELECT tt.task_id, t.name FROM tags t
+         JOIN task_tags tt ON tt.tag_id = t.id
+         WHERE tt.task_id IN ({placeholders})
+         ORDER BY t.name"
+    );
+    let mut tags_stmt = conn.prepare(&tags_sql)?;
+    let args_ref: Vec<&dyn ToSql> = ids.iter().map(|id| id as &dyn ToSql).collect();
+    let mut tag_rows = tags_stmt.query(args_ref.as_slice())?;
+    let mut tags_map: HashMap<String, Vec<String>> = HashMap::new();
+    while let Some(row) = tag_rows.next()? {
+        let task_id: String = row.get(0)?;
+        let tag_name: String = row.get(1)?;
+        tags_map.entry(task_id).or_default().push(tag_name);
+    }
+
+    // 3. Batch load all subtasks for these tasks in 1 query
+    let subtasks_sql = format!(
+        "SELECT task_id, id, title, completed_at FROM subtasks
+         WHERE task_id IN ({placeholders}) AND deleted_at IS NULL
+         ORDER BY created_at"
+    );
+    let mut sub_stmt = conn.prepare(&subtasks_sql)?;
+    let mut sub_rows = sub_stmt.query(args_ref.as_slice())?;
+    let mut sub_map: HashMap<String, Vec<Subtask>> = HashMap::new();
+    while let Some(row) = sub_rows.next()? {
+        let task_id: String = row.get(0)?;
+        let subtask = Subtask {
+            id: row.get(1)?,
+            title: row.get(2)?,
+            completed_at: row.get(3)?,
+        };
+        sub_map.entry(task_id).or_default().push(subtask);
+    }
+
+    // 4. Attach loaded tags and subtasks to each task in O(1) time
+    for task in &mut tasks {
+        if let Some(tags) = tags_map.remove(&task.id) {
+            task.tags = tags;
+        }
+        if let Some(subtasks) = sub_map.remove(&task.id) {
+            task.subtasks = subtasks;
+        }
+    }
+
+    Ok(tasks)
 }
 
 pub fn create(conn: &mut Connection, input: TaskInput) -> AppResult<Task> {
@@ -233,6 +309,39 @@ pub fn soft_delete(conn: &Connection, id: &str) -> AppResult<()> {
     Ok(())
 }
 
+pub fn restore_task(conn: &Connection, id: &str) -> AppResult<()> {
+    let ts = now();
+    let changed = conn.execute(
+        "UPDATE tasks SET deleted_at = NULL, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NOT NULL",
+        params![id, ts],
+    )?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("task {id}")));
+    }
+    Ok(())
+}
+
+pub fn permanent_delete(conn: &Connection, id: &str) -> AppResult<()> {
+    let changed = conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
+    if changed == 0 {
+        return Err(AppError::NotFound(format!("task {id}")));
+    }
+    Ok(())
+}
+
+pub fn empty_trash(conn: &Connection) -> AppResult<usize> {
+    let count = conn.execute("DELETE FROM tasks WHERE deleted_at IS NOT NULL", [])?;
+    Ok(count)
+}
+
+pub fn list_trash(conn: &Connection) -> AppResult<Vec<Task>> {
+    collect(
+        conn,
+        &format!("SELECT {SELECT_COLS} FROM tasks WHERE deleted_at IS NOT NULL ORDER BY updated_at DESC"),
+        &[],
+    )
+}
+
 pub fn add_subtask(conn: &Connection, task_id: &str, title: &str) -> AppResult<Task> {
     if title.trim().is_empty() {
         return Err(AppError::Invalid("subtask title is required".into()));
@@ -265,7 +374,7 @@ pub fn toggle_subtask(conn: &Connection, subtask_id: &str, done: bool) -> AppRes
 pub fn list_open(conn: &Connection) -> AppResult<Vec<Task>> {
     collect(
         conn,
-        &format!("SELECT id FROM tasks WHERE completed_at IS NULL AND deleted_at IS NULL {ORDER}"),
+        &format!("SELECT {SELECT_COLS} FROM tasks WHERE completed_at IS NULL AND deleted_at IS NULL {ORDER}"),
         &[],
     )
 }
@@ -274,7 +383,7 @@ pub fn list_today(conn: &Connection, today: &str) -> AppResult<Vec<Task>> {
     collect(
         conn,
         &format!(
-            "SELECT id FROM tasks WHERE due_date = ?1 AND completed_at IS NULL AND deleted_at IS NULL {ORDER}"
+            "SELECT {SELECT_COLS} FROM tasks WHERE due_date = ?1 AND completed_at IS NULL AND deleted_at IS NULL {ORDER}"
         ),
         &[&today],
     )
@@ -284,7 +393,7 @@ pub fn list_overdue(conn: &Connection, today: &str) -> AppResult<Vec<Task>> {
     collect(
         conn,
         &format!(
-            "SELECT id FROM tasks WHERE due_date < ?1 AND completed_at IS NULL AND deleted_at IS NULL {ORDER}"
+            "SELECT {SELECT_COLS} FROM tasks WHERE due_date < ?1 AND completed_at IS NULL AND deleted_at IS NULL {ORDER}"
         ),
         &[&today],
     )
@@ -294,7 +403,7 @@ pub fn list_for_project(conn: &Connection, project_id: &str) -> AppResult<Vec<Ta
     collect(
         conn,
         &format!(
-            "SELECT id FROM tasks WHERE project_id = ?1 AND deleted_at IS NULL {ORDER}"
+            "SELECT {SELECT_COLS} FROM tasks WHERE project_id = ?1 AND deleted_at IS NULL {ORDER}"
         ),
         &[&project_id],
     )
@@ -305,7 +414,7 @@ pub fn list_for_tag(conn: &Connection, tag: &str) -> AppResult<Vec<Task>> {
     collect(
         conn,
         &format!(
-            "SELECT id FROM tasks
+            "SELECT {SELECT_COLS} FROM tasks
              WHERE deleted_at IS NULL
                AND id IN (
                    SELECT tt.task_id FROM task_tags tt
@@ -389,60 +498,63 @@ pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
     // Find open tasks with a recur_rule whose due_date is in the past (< today_str)
     let overdue_recurring: Vec<Task> = collect(
         conn,
-        "SELECT id FROM tasks 
-         WHERE recur_rule IS NOT NULL 
-           AND recur_rule != '' 
-           AND due_date IS NOT NULL 
-           AND due_date < ?1 
-           AND completed_at IS NULL 
-           AND deleted_at IS NULL",
+        &format!(
+            "SELECT {SELECT_COLS} FROM tasks 
+             WHERE recur_rule IS NOT NULL 
+               AND recur_rule != '' 
+               AND due_date IS NOT NULL 
+               AND due_date < ?1 
+               AND completed_at IS NULL 
+               AND deleted_at IS NULL"
+        ),
         &[&today_str],
     )?;
 
     let mut generated_count = 0;
     for task in overdue_recurring {
-        let rule = task.recur_rule.as_ref().unwrap();
-        let mut curr_due = task.due_date.clone().unwrap();
+        if let (Some(rule), Some(curr_due_val)) = (&task.recur_rule, &task.due_date) {
+            let mut curr_due = curr_due_val.clone();
 
-        // Advance until curr_due >= today_str or safely limit iterations to prevent infinite loop
-        let mut iterations = 0;
-        let mut next_due_opt = crate::db::recur::next_due(&curr_due, rule);
-        
-        while let Some(next_due) = next_due_opt {
-            iterations += 1;
-            if iterations > 365 {
-                break;
-            }
-            if next_due.as_str() >= today_str.as_str() {
-                // Check if an open or completed task with same title and next_due already exists
-                let exists: bool = conn.query_row(
-                    "SELECT EXISTS(
-                        SELECT 1 FROM tasks 
-                        WHERE title = ?1 AND due_date = ?2 AND deleted_at IS NULL
-                    )",
-                    params![task.title.trim(), next_due],
-                    |row| row.get(0),
-                )?;
-
-                if !exists {
-                    let next_input = TaskInput {
-                        title: task.title.clone(),
-                        notes: task.notes.clone(),
-                        priority: task.priority.clone(),
-                        due_date: Some(next_due),
-                        due_time: task.due_time.clone(),
-                        project_id: task.project_id.clone(),
-                        section_id: task.section_id.clone(),
-                        tags: task.tags.clone(),
-                        recur_rule: Some(rule.clone()),
-                    };
-                    let _ = create(conn, next_input);
-                    generated_count += 1;
+            // Advance until curr_due >= today_str or safely limit iterations to prevent infinite loop
+            let mut iterations = 0;
+            let mut next_due_opt = crate::db::recur::next_due(&curr_due, rule);
+            
+            while let Some(next_due) = next_due_opt {
+                iterations += 1;
+                if iterations > 365 {
+                    break;
                 }
-                break;
-            } else {
-                curr_due = next_due;
-                next_due_opt = crate::db::recur::next_due(&curr_due, rule);
+                if next_due.as_str() >= today_str.as_str() {
+                    // Check if an open or completed task with same title and next_due already exists
+                    let exists: bool = conn.query_row(
+                        "SELECT EXISTS(
+                            SELECT 1 FROM tasks 
+                            WHERE title = ?1 AND due_date = ?2 AND deleted_at IS NULL
+                        )",
+                        params![task.title.trim(), next_due],
+                        |row| row.get(0),
+                    )?;
+
+                    if !exists {
+                        let next_input = TaskInput {
+                            title: task.title.clone(),
+                            notes: task.notes.clone(),
+                            priority: task.priority.clone(),
+                            due_date: Some(next_due),
+                            due_time: task.due_time.clone(),
+                            project_id: task.project_id.clone(),
+                            section_id: task.section_id.clone(),
+                            tags: task.tags.clone(),
+                            recur_rule: Some(rule.clone()),
+                        };
+                        let _ = create(conn, next_input);
+                        generated_count += 1;
+                    }
+                    break;
+                } else {
+                    curr_due = next_due;
+                    next_due_opt = crate::db::recur::next_due(&curr_due, rule);
+                }
             }
         }
     }
@@ -450,11 +562,22 @@ pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
     Ok(generated_count)
 }
 
+pub fn reschedule_overdue(conn: &Connection, target_date: &str) -> AppResult<usize> {
+    let ts = now();
+    let count = conn.execute(
+        "UPDATE tasks 
+         SET due_date = ?1, updated_at = ?2 
+         WHERE due_date < ?1 AND completed_at IS NULL AND deleted_at IS NULL",
+        params![target_date, ts],
+    )?;
+    Ok(count)
+}
+
 pub fn list_completed_between(conn: &Connection, start: &str, end: &str) -> AppResult<Vec<Task>> {
     collect(
         conn,
         &format!(
-            "SELECT id FROM tasks
+            "SELECT {SELECT_COLS} FROM tasks
              WHERE deleted_at IS NULL
                AND completed_at IS NOT NULL
                AND julianday(completed_at) >= julianday(?1)

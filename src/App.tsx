@@ -4,29 +4,22 @@ import { getWindowType } from "./app/windows";
 import { FloatingBarWindow } from "./features/quick-capture/FloatingBarWindow";
 import { QuickCaptureWindow } from "./features/quick-capture/QuickCaptureWindow";
 import { AppShell } from "./features/shell/AppShell";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   const winType = getWindowType();
 
-  if (winType === "floating-bar") {
-    return (
-      <ThemeProvider>
-        <FloatingBarWindow />
-      </ThemeProvider>
-    );
-  }
-
-  if (winType === "quick-capture") {
-    return (
-      <ThemeProvider>
-        <QuickCaptureWindow />
-      </ThemeProvider>
-    );
-  }
-
   return (
-    <ThemeProvider>
-      <AppShell />
-    </ThemeProvider>
+    <ErrorBoundary>
+      <ThemeProvider>
+        {winType === "floating-bar" ? (
+          <FloatingBarWindow />
+        ) : winType === "quick-capture" ? (
+          <QuickCaptureWindow />
+        ) : (
+          <AppShell />
+        )}
+      </ThemeProvider>
+    </ErrorBoundary>
   );
 }
