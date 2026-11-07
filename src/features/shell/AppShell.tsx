@@ -16,6 +16,7 @@ import { SettingsView } from "../settings/SettingsView";
 import { HabitsView } from "../habits/HabitsView";
 import { CalendarView } from "../calendar/CalendarView";
 import { TrashView } from "../trash/TrashView";
+import { MascotCelebration } from "../../components/MascotCelebration";
 
 function renderView(view: ViewId) {
   if (view === "settings") return <SettingsView />;
@@ -49,15 +50,53 @@ export function AppShell() {
         return;
       }
       const tag = (e.target as HTMLElement).tagName;
-      if (tag === "INPUT" || tag === "TEXTAREA") return;
-      if (!(e.ctrlKey || e.metaKey)) return;
-      const key = e.key.toLowerCase();
-      if (key === "z" && !e.shiftKey) {
+      if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+
+      
+      if (e.ctrlKey || e.metaKey) {
+        const key = e.key.toLowerCase();
+        if (key === "z" && !e.shiftKey) {
+          e.preventDefault();
+          void undo();
+          return;
+        } else if (key === "y" || (key === "z" && e.shiftKey)) {
+          e.preventDefault();
+          void redo();
+          return;
+        }
+      }
+
+      
+      const tasksState = useTasks.getState();
+      const uiState = useUi.getState();
+      const activeList = tasksState.open;
+      if (activeList.length === 0) return;
+
+      const currentIdx = uiState.selectedTaskId
+        ? activeList.findIndex((t) => t.id === uiState.selectedTaskId)
+        : -1;
+
+      if (e.key === "ArrowDown" || e.key.toLowerCase() === "j") {
         e.preventDefault();
-        void undo();
-      } else if (key === "y" || (key === "z" && e.shiftKey)) {
+        const nextIdx = currentIdx < activeList.length - 1 ? currentIdx + 1 : 0;
+        uiState.openTask(activeList[nextIdx].id);
+      } else if (e.key === "ArrowUp" || e.key.toLowerCase() === "k") {
         e.preventDefault();
-        void redo();
+        const prevIdx = currentIdx > 0 ? currentIdx - 1 : activeList.length - 1;
+        uiState.openTask(activeList[prevIdx].id);
+      } else if (e.key === " " || e.key.toLowerCase() === "e") {
+        if (uiState.selectedTaskId) {
+          e.preventDefault();
+          const cur = activeList.find((t) => t.id === uiState.selectedTaskId);
+          if (cur) void tasksState.toggleTask(cur);
+        }
+      } else if (e.key === "Delete" || e.key === "Backspace") {
+        if (uiState.selectedTaskId) {
+          e.preventDefault();
+          const toDelete = uiState.selectedTaskId;
+          uiState.closeTask();
+          void tasksState.deleteTask(toDelete);
+        }
       }
     };
     window.addEventListener("keydown", onKey);
@@ -72,6 +111,7 @@ export function AppShell() {
       <TaskDetail />
       <ConfirmHost />
       <SearchModal />
+      <MascotCelebration />
 
       {quickAddOpen && (
         <div className="modal-backdrop" onMouseDown={closeQuickAdd}>

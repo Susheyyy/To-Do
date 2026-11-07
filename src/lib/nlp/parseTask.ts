@@ -10,6 +10,7 @@ export interface ParsedTask {
   priority: Priority;
   tags: string[];
   projectName: string | null;
+  recurRule: string | null;
 }
 
 const PRIORITY_WORDS: Record<string, Priority> = {
@@ -27,7 +28,7 @@ const PRIORITY_CODES: Record<string, Priority> = {
   "4": "none",
 };
 
-// Canonical weekday names indexed 0=Sun … 6=Sat, matching date-fns Day type.
+
 const WEEKDAY_NAMES = [
   "sunday",
   "monday",
@@ -38,7 +39,7 @@ const WEEKDAY_NAMES = [
   "saturday",
 ] as const;
 
-// All recognised aliases → canonical name
+
 const WEEKDAY_ALIASES: Record<string, (typeof WEEKDAY_NAMES)[number]> = {
   sun: "sunday",
   sunday: "sunday",
@@ -60,20 +61,20 @@ const WEEKDAY_ALIASES: Record<string, (typeof WEEKDAY_NAMES)[number]> = {
   saturday: "saturday",
 };
 
-/** Index 0-6 for a canonical weekday name (Sun=0…Sat=6). */
+
 function weekdayIndex(name: (typeof WEEKDAY_NAMES)[number]): Day {
   return WEEKDAY_NAMES.indexOf(name) as Day;
 }
 
-/** Next occurrence of `target` weekday at or after `from`. */
+
 function nextWeekday(from: Date, target: Day): Date {
-  if (from.getDay() === target) return from; // today is that day
+  if (from.getDay() === target) return from; 
   return nextDay(from, target);
 }
 
-/** Next occurrence of `target` weekday strictly after today. */
+
 function strictNextWeekday(from: Date, target: Day): Date {
-  if (from.getDay() === target) return addDays(from, 7); // next week's occurrence
+  if (from.getDay() === target) return addDays(from, 7); 
   return nextDay(from, target);
 }
 
@@ -122,9 +123,9 @@ function monthDate(
   return iso(d);
 }
 
-// ─── Recurrence tokens ──────────────────────────────────────────────────────
-// These are stripped from the title but currently only stored as metadata.
-// A future `recur_rule` column can consume them directly.
+
+
+
 const RECUR_TOKENS: Array<[RegExp, string]> = [
   [/\beveryday\b/i, "daily"],
   [/\bevery\s+day\b/i, "daily"],
@@ -152,16 +153,16 @@ function extractRecur(text: string): { recur: string | null; rest: string } {
   return { recur: null, rest: text };
 }
 
-// ─── Single-date extraction ──────────────────────────────────────────────────
+
 function extractDate(
   text: string,
   today: Date
 ): { date: string | null; rest: string } {
-  // ISO literal
+  
   const exact = text.match(/\b(\d{4}-\d{2}-\d{2})\b/);
   if (exact) return { date: exact[1], rest: text.replace(exact[0], " ") };
 
-  // today / tomorrow
+  
   const relative = text.match(/\b(today|tomorrow|tmrw|tmr)\b/i);
   if (relative) {
     const offset = relative[1].toLowerCase() === "today" ? 0 : 1;
@@ -171,7 +172,7 @@ function extractDate(
     };
   }
 
-  // "in N days / weeks"
+  
   const inN = text.match(/\bin\s+(\d+)\s+(day|days|week|weeks)\b/i);
   if (inN) {
     const days =
@@ -179,7 +180,7 @@ function extractDate(
     return { date: iso(addDays(today, days)), rest: text.replace(inN[0], " ") };
   }
 
-  // "next week"
+  
   const nextWeek = text.match(/\bnext\s+week\b/i);
   if (nextWeek)
     return {
@@ -187,31 +188,31 @@ function extractDate(
       rest: text.replace(nextWeek[0], " "),
     };
 
-  // "this weekend" → coming Saturday
+  
   const thisWeekend = text.match(/\bthis\s+weekend\b/i);
   if (thisWeekend) {
     const sat = nextWeekday(today, 6 as Day);
     return { date: iso(sat), rest: text.replace(thisWeekend[0], " ") };
   }
 
-  // "next weekend" → Saturday of next week
+  
   const nextWeekend = text.match(/\bnext\s+weekend\b/i);
   if (nextWeekend) {
     const sat = strictNextWeekday(today, 6 as Day);
     return { date: iso(sat), rest: text.replace(nextWeekend[0], " ") };
   }
 
-  // "this weekday" / "next weekday" → next Mon-Fri
+  
   const weekdayToken = text.match(/\b(?:this|next)\s+weekday\b/i);
   if (weekdayToken) {
-    // Find the next Mon-Fri
+    
     let d = addDays(today, 1);
     while (d.getDay() === 0 || d.getDay() === 6) d = addDays(d, 1);
     return { date: iso(d), rest: text.replace(weekdayToken[0], " ") };
   }
 
-  // Named weekday: "(on|next|this) <day>" or bare "<day>" at boundary
-  //   "next wed", "on friday", "this sat", "monday"
+  
+  
   const ALIAS_PATTERN = Object.keys(WEEKDAY_ALIASES).join("|");
   const weekdayRe = new RegExp(
     `\\b(?:(on|next|this)\\s+)?(${ALIAS_PATTERN})\\b`,
@@ -228,13 +229,13 @@ function extractDate(
     } else if (marker === "this") {
       date = nextWeekday(today, target);
     } else {
-      // bare weekday name or "on X" → next occurrence (today counts)
+      
       date = nextWeekday(today, target);
     }
     return { date: iso(date), rest: text.replace(weekday[0], " ") };
   }
 
-  // "15 jan", "jan 15", "jan 15 2027"
+  
   const dayMonth = text.match(DAY_MONTH);
   if (dayMonth) {
     const date = monthDate(

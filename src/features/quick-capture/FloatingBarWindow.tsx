@@ -1,9 +1,10 @@
 import { FormEvent, useEffect, useMemo, useRef, useState } from "react";
-import { getCurrentWindow } from "@tauri-apps/api/window";
+import { getCurrentWindow, LogicalPosition } from "@tauri-apps/api/window";
 import { Icon } from "../../components/Icon";
 import { api } from "../../lib/api";
 import { parseTask } from "../../lib/nlp/parseTask";
 import { useTasks } from "../../stores/tasks.store";
+import { useSettings } from "../../stores/settings.store";
 
 declare global {
   interface Window {
@@ -22,6 +23,17 @@ export function FloatingBarWindow() {
   const recognizerRef = useRef<any>(null);
 
   const isDraggingRef = useRef<boolean>(false);
+  const floatingBarPosition = useSettings((s) => s.floatingBarPosition);
+  const setFloatingBarPosition = useSettings((s) => s.setFloatingBarPosition);
+
+  // Restore saved coordinates on mount
+  useEffect(() => {
+    if (floatingBarPosition) {
+      void getCurrentWindow().setPosition(
+        new LogicalPosition(floatingBarPosition.x, floatingBarPosition.y)
+      );
+    }
+  }, []);
 
   async function close() {
     setText("");
@@ -101,8 +113,12 @@ export function FloatingBarWindow() {
     } catch {
       await getCurrentWindow().startDragging();
     } finally {
-      setTimeout(() => {
+      setTimeout(async () => {
         isDraggingRef.current = false;
+        try {
+          const pos = await getCurrentWindow().outerPosition();
+          setFloatingBarPosition({ x: pos.x, y: pos.y });
+        } catch {}
       }, 300);
     }
   }
@@ -130,7 +146,7 @@ export function FloatingBarWindow() {
       className="floating-bar-container"
       data-tauri-drag-region
       onMouseDown={(e) => {
-        // Allow drag only when clicking directly on the container/drag handles, not within buttons/inputs/interactive elements
+        
         const target = e.target as HTMLElement | null;
         if (e.button === 0 && target && !target.closest("button, input, select, textarea, a, form")) {
           void startDrag();

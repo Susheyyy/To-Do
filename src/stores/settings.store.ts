@@ -11,6 +11,8 @@ interface SettingsState {
   setDailyGoal: (goal: number) => void;
   notificationsEnabled: boolean;
   setNotificationsEnabled: (enabled: boolean) => void;
+  soundEnabled: boolean;
+  setSoundEnabled: (enabled: boolean) => void;
   quietHoursEnabled: boolean;
   setQuietHoursEnabled: (enabled: boolean) => void;
   quietHoursStart: string;
@@ -21,6 +23,8 @@ interface SettingsState {
   setMorningBriefingEnabled: (enabled: boolean) => void;
   morningBriefingTime: string;
   setMorningBriefingTime: (time: string) => void;
+  floatingBarPosition: { x: number; y: number } | null;
+  setFloatingBarPosition: (pos: { x: number; y: number } | null) => void;
 }
 
 let isBroadcasting = false;
@@ -48,6 +52,11 @@ export const useSettings = create<SettingsState>()(
         set({ notificationsEnabled });
         broadcastSettings({ notificationsEnabled });
       },
+      soundEnabled: true,
+      setSoundEnabled: (soundEnabled) => {
+        set({ soundEnabled });
+        broadcastSettings({ soundEnabled });
+      },
       quietHoursEnabled: false,
       setQuietHoursEnabled: (quietHoursEnabled) => {
         set({ quietHoursEnabled });
@@ -73,12 +82,17 @@ export const useSettings = create<SettingsState>()(
         set({ morningBriefingTime });
         broadcastSettings({ morningBriefingTime });
       },
+      floatingBarPosition: null,
+      setFloatingBarPosition: (floatingBarPosition) => {
+        set({ floatingBarPosition });
+        broadcastSettings({ floatingBarPosition });
+      },
     }),
     { name: "todo.settings" }
   )
 );
 
-// Listen for settings-changed across all windows
+
 listen<Partial<SettingsState>>("settings-changed", (event) => {
   if (event.payload && typeof event.payload === "object") {
     isBroadcasting = true;

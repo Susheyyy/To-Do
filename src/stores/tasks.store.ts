@@ -4,7 +4,7 @@ import { create } from "zustand";
 
 import { api } from "../lib/api";
 import { nextProjectSlot } from "../lib/projectColors";
-import type { Project, Task, TaskInput } from "../types/models";
+import type { Priority, Project, Task, TaskInput } from "../types/models";
 
 export const todayIso = () => format(new Date(), "yyyy-MM-dd");
 
@@ -48,6 +48,11 @@ interface TasksState {
   renameTag: (oldTag: string, newTag: string) => Promise<void>;
   deleteTag: (tag: string) => Promise<void>;
   rescheduleOverdue: () => Promise<void>;
+  batchToggle: (ids: string[], done: boolean) => Promise<void>;
+  batchDelete: (ids: string[]) => Promise<void>;
+  batchReschedule: (ids: string[], dueDate: string | null) => Promise<void>;
+  batchSetPriority: (ids: string[], priority: Priority) => Promise<void>;
+  batchMoveProject: (ids: string[], projectId: string | null) => Promise<void>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 }
@@ -95,7 +100,7 @@ export const useTasks = create<TasksState>((set, get) => {
         completedAt: willBeDone ? nowIso : null,
       };
 
-      // 1. Optimistic instant state update in UI
+      
       const prevOpen = get().open;
       const prevToday = get().today;
       const prevOverdue = get().overdue;
@@ -119,7 +124,7 @@ export const useTasks = create<TasksState>((set, get) => {
         });
       }
 
-      // 2. Perform background write, roll back on error
+      
       try {
         await api.setTaskCompleted(task.id, willBeDone);
       } catch (err) {
@@ -175,6 +180,48 @@ export const useTasks = create<TasksState>((set, get) => {
     rescheduleOverdue: () =>
       guard(async () => {
         await api.rescheduleOverdue(todayIso());
+      }),
+    batchToggle: (ids, done) =>
+      guard(async () => {
+        for (const id of ids) {
+          await api.setTaskCompleted(id, done);
+        }
+      }),
+    batchDelete: (ids) =>
+      guard(async () => {
+        for (const id of ids) {
+          await api.deleteTask(id);
+        }
+      }),
+    batchReschedule: (ids, dueDate) =>
+      guard(async () => {
+        const allTasks = [...get().open, ...get().today, ...get().overdue];
+        for (const id of ids) {
+          const t = allTasks.find((item) => item.id === id);
+          if (t) {
+            await api.updateTask(id, toInput(t, { dueDate }));
+          }
+        }
+      }),
+    batchSetPriority: (ids, priority) =>
+      guard(async () => {
+        const allTasks = [...get().open, ...get().today, ...get().overdue];
+        for (const id of ids) {
+          const t = allTasks.find((item) => item.id === id);
+          if (t) {
+            await api.updateTask(id, toInput(t, { priority }));
+          }
+        }
+      }),
+    batchMoveProject: (ids, projectId) =>
+      guard(async () => {
+        const allTasks = [...get().open, ...get().today, ...get().overdue];
+        for (const id of ids) {
+          const t = allTasks.find((item) => item.id === id);
+          if (t) {
+            await api.updateTask(id, toInput(t, { projectId, sectionId: null }));
+          }
+        }
       }),
     undo: () => guard(() => api.undo()),
     redo: () => guard(() => api.redo()),

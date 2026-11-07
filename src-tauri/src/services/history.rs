@@ -10,7 +10,7 @@ const LIMIT: usize = 50;
 
 #[derive(Debug, Clone)]
 pub enum Change {
-    Task { id: String, before: Option<Task> },
+    Task { id: String, before: Box<Option<Task>> },
     Project { id: String, before: Option<Project> },
 }
 
@@ -61,7 +61,7 @@ impl History {
 pub fn capture_task(conn: &Connection, id: &str) -> AppResult<Change> {
     Ok(Change::Task {
         id: id.to_string(),
-        before: tasks_repo::find(conn, id)?,
+        before: Box::new(tasks_repo::find(conn, id)?),
     })
 }
 
@@ -79,10 +79,10 @@ pub fn apply(conn: &mut Connection, changes: &[Change]) -> AppResult<Vec<Change>
         match change {
             Change::Task { id, before } => {
                 let current = tasks_repo::find(&tx, id)?;
-                tasks_repo::restore(&tx, id, before.as_ref())?;
+                tasks_repo::restore(&tx, id, before.as_ref().as_ref())?;
                 inverse.push(Change::Task {
                     id: id.clone(),
-                    before: current,
+                    before: Box::new(current),
                 });
             }
             Change::Project { id, before } => {

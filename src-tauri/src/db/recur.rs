@@ -1,16 +1,6 @@
 use chrono::{Datelike, Duration, NaiveDate, Weekday};
 
-/// Canonical recur_rule strings the app uses internally.
-/// Parser produces these; this module reads them.
-///
-/// Format:
-///   "daily"            — every day
-///   "weekdays"         — Mon-Fri
-///   "weekends"         — Sat-Sun
-///   "weekly"           — same weekday each week
-///   "monthly"          — same day each month
-///   "every-mon" … "every-sun"  — specific weekday each week
-
+#[allow(dead_code)]
 fn day_abbrev(w: Weekday) -> &'static str {
     match w {
         Weekday::Mon => "every-mon",
@@ -97,8 +87,7 @@ pub fn next_due(due_date: &str, recur_rule: &str) -> Option<String> {
     Some(next.format("%Y-%m-%d").to_string())
 }
 
-/// Normalise raw rule strings from the NLP parser into canonical form.
-/// Returns `None` for unknown / empty rules.
+#[allow(dead_code)]
 pub fn normalise(raw: &str) -> Option<String> {
     let r = raw.trim().to_lowercase();
     match r.as_str() {
@@ -108,14 +97,13 @@ pub fn normalise(raw: &str) -> Option<String> {
         "weekly" | "everyweek" | "every week" => Some("weekly".into()),
         "monthly" | "every month" => Some("monthly".into()),
         s if s.starts_with("every-") => {
-            // Already canonical ("every-mon" etc.) — validate weekday abbreviation.
             target_weekday(s).map(|w| day_abbrev(w).to_string())
         }
         _ => None,
     }
 }
 
-/// Human-readable label for display in the UI.
+#[allow(dead_code)]
 pub fn label(rule: &str) -> &'static str {
     match rule {
         "daily" => "Daily",

@@ -126,7 +126,7 @@ pub fn get(conn: &Connection, id: &str) -> AppResult<Task> {
 }
 
 fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<Task>> {
-    // 1. Fetch all matching tasks in a single query
+    
     let mut stmt = conn.prepare(sql)?;
     let mut rows = stmt.query(args)?;
     let mut tasks = Vec::new();
@@ -157,7 +157,7 @@ fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<T
         return Ok(tasks);
     }
 
-    // 2. Batch load all tags for these tasks in 1 query
+    
     let placeholders: String = ids.iter().map(|_| "?").collect::<Vec<_>>().join(",");
     let tags_sql = format!(
         "SELECT tt.task_id, t.name FROM tags t
@@ -175,7 +175,7 @@ fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<T
         tags_map.entry(task_id).or_default().push(tag_name);
     }
 
-    // 3. Batch load all subtasks for these tasks in 1 query
+    
     let subtasks_sql = format!(
         "SELECT task_id, id, title, completed_at FROM subtasks
          WHERE task_id IN ({placeholders}) AND deleted_at IS NULL
@@ -194,7 +194,6 @@ fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<T
         sub_map.entry(task_id).or_default().push(subtask);
     }
 
-    // 4. Attach loaded tags and subtasks to each task in O(1) time
     for task in &mut tasks {
         if let Some(tags) = tags_map.remove(&task.id) {
             task.tags = tags;
@@ -272,12 +271,22 @@ pub fn set_completed(conn: &mut Connection, id: &str, done: bool) -> AppResult<T
     }
     let task = get(conn, id)?;
 
-    // If task was completed (done = true) and has a recur_rule, create the next occurrence!
-    if done {
-        if let Some(rule) = &task.recur_rule {
-            let today_str = Utc::now().format("%Y-%m-%d").to_string();
-            let base_date = task.due_date.as_deref().unwrap_or(&today_str);
-            if let Some(next_date) = crate::db::recur::next_due(base_date, rule) {
+    
+    if done
+        && let Some(rule) = &task.recur_rule
+    {
+        let today_str = Utc::now().format("%Y-%m-%d").to_string();
+        let base_date = task.due_date.as_deref().unwrap_or(&today_str);
+        if let Some(next_date) = crate::db::recur::next_due(base_date, rule) {
+            let exists: bool = conn.query_row(
+                "SELECT EXISTS(
+                    SELECT 1 FROM tasks 
+                    WHERE title = ?1 AND due_date = ?2 AND deleted_at IS NULL
+                )",
+                params![task.title.trim(), next_date],
+                |row| row.get(0),
+            )?;
+            if !exists {
                 let next_input = TaskInput {
                     title: task.title.clone(),
                     notes: task.notes.clone(),
@@ -495,7 +504,7 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
 pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
     let today_str = Utc::now().format("%Y-%m-%d").to_string();
     
-    // Find open tasks with a recur_rule whose due_date is in the past (< today_str)
+    
     let overdue_recurring: Vec<Task> = collect(
         conn,
         &format!(
@@ -515,7 +524,7 @@ pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
         if let (Some(rule), Some(curr_due_val)) = (&task.recur_rule, &task.due_date) {
             let mut curr_due = curr_due_val.clone();
 
-            // Advance until curr_due >= today_str or safely limit iterations to prevent infinite loop
+            
             let mut iterations = 0;
             let mut next_due_opt = crate::db::recur::next_due(&curr_due, rule);
             
@@ -525,7 +534,7 @@ pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
                     break;
                 }
                 if next_due.as_str() >= today_str.as_str() {
-                    // Check if an open or completed task with same title and next_due already exists
+                    
                     let exists: bool = conn.query_row(
                         "SELECT EXISTS(
                             SELECT 1 FROM tasks 
@@ -571,6 +580,24 @@ pub fn reschedule_overdue(conn: &Connection, target_date: &str) -> AppResult<usi
         params![target_date, ts],
     )?;
     Ok(count)
+}
+
+pub fn search_fts(conn: &Connection, query: &str) -> AppResult<Vec<Task>> {
+    let clean_query = query.trim();
+    if clean_query.is_empty() {
+        return Ok(Vec::new());
+    }
+    collect(
+        conn,
+        &format!(
+            "SELECT {SELECT_COLS} FROM tasks
+             WHERE id IN (
+                 SELECT task_id FROM tasks_fts WHERE tasks_fts MATCH ?1
+             ) AND deleted_at IS NULL
+             {ORDER}"
+        ),
+        &[&clean_query],
+    )
 }
 
 pub fn list_completed_between(conn: &Connection, start: &str, end: &str) -> AppResult<Vec<Task>> {

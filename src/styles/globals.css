@@ -1763,7 +1763,7 @@ button {
   font: inherit;
 }
 
-/* Popup Card for Desktop Shortcut & Quick Capture */
+
 .popup-card {
   width: 100vw;
   height: 100vh;
@@ -1992,7 +1992,7 @@ button {
 }
 
 
-/* Floating Capsule Bar (Ctrl+Alt+Space Global Quick Add) */
+
 .floating-bar-container {
   width: 100vw;
   height: 100vh;
@@ -2106,7 +2106,7 @@ button {
 }
 
 
-/* Todoist-Style Inline Add Box */
+
 .inline-quickadd-box {
   background: var(--color-surface);
   border: 1px solid var(--color-border);
@@ -2148,7 +2148,7 @@ button {
 }
 
 
-/* Calendar View & Time Blocking */
+
 .cal-nav-buttons {
   display: flex;
   align-items: center;
@@ -2381,7 +2381,7 @@ button {
   color: var(--color-text);
 }
 
-/* Time Blocking Day Scheduler (Google Calendar Style) */
+
 .cal-day-scheduler {
   padding: 18px;
 }
@@ -2490,7 +2490,7 @@ button {
   opacity: 0.8;
 }
 
-/* Habits Grid Styles */
+
 .habit-form-card {
   max-width: 520px;
   background: var(--color-surface);
@@ -2692,7 +2692,7 @@ button {
 }
 
 
-/* User Profile Daily Progress Popup */
+
 .user-profile-popup {
   position: absolute;
   top: calc(100% + 8px);
@@ -2769,7 +2769,7 @@ button {
 }
 
 
-/* Custom Days Picker */
+
 .habit-days-picker {
   display: flex;
   gap: 6px;
@@ -2800,7 +2800,7 @@ button {
 }
 
 
-/* Board Add Section Column */
+
 .board-add-section-col {
   min-width: 200px;
   max-width: 260px;
@@ -2827,7 +2827,7 @@ button {
 }
 
 
-/* Label Item Container & Hover Actions */
+
 .label-item-chip-container {
   display: inline-flex;
   align-items: center;
@@ -2884,7 +2884,7 @@ button {
 }
 
 
-/* Projects Section in Sidebar */
+
 .projects-section {
   display: flex;
   flex-direction: column;
@@ -2902,7 +2902,7 @@ button {
 }
 
 
-/* Voice / Mic input button styles */
+
 .mic-input-btn {
   background: transparent;
   border: none;
@@ -2958,3 +2958,55 @@ button {
     opacity: 1;
   }
 }
+
+
+.meta-due.badge-overdue {
+  color: #ef4444 !important;
+  font-weight: 600;
+}
+.meta-due.badge-today {
+  color: #10b981 !important;
+  font-weight: 600;
+}
+.meta-due.badge-tomorrow {
+  color: #3b82f6 !important;
+}
+.meta-due.badge-soon {
+  color: #8b5cf6 !important;
+}
+
+
+.focused-task-row {
+  outline: 2px solid var(--color-accent, #6366f1) !important;
+  outline-offset: -1px;
+  background: var(--color-bg-secondary, rgba(99, 102, 241, 0.05)) !important;
+}
+
+
+@keyframes slideInBounce {
+  0% {
+    transform: translateY(100px) scale(0.8);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-10px) scale(1.02);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
+  }
+}
+
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+

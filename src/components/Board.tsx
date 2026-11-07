@@ -1,8 +1,8 @@
 import { ReactNode, useRef } from "react";
 import { AddInline } from "./AddInline";
 import { TaskRow } from "../features/today/TaskRow";
-import { Layout, useUi } from "../stores/ui.store";
-import type { Task } from "../types/models";
+import { toInput, useTasks } from "../stores/tasks.store";
+import type { Priority, Task } from "../types/models";
 
 export interface Column {
   key: string;
@@ -21,6 +21,8 @@ export function Board({
   extraColumn?: ReactNode;
 }) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const updateTask = useTasks((s) => s.updateTask);
+  const openTasks = useTasks((s) => s.open);
 
   function handleMouseDown(e: React.MouseEvent<HTMLDivElement>) {
     const target = e.target as HTMLElement;
@@ -59,6 +61,26 @@ export function Board({
     window.addEventListener("mouseup", onMouseUp);
   }
 
+  function handleDragOver(e: React.DragEvent) {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  }
+
+  function handleDrop(col: Column, e: React.DragEvent) {
+    e.preventDefault();
+    const taskId = e.dataTransfer.getData("text/plain");
+    if (!taskId) return;
+    const task = openTasks.find((t) => t.id === taskId);
+    if (!task) return;
+
+    
+    if (["high", "medium", "low", "none"].includes(col.key)) {
+      void updateTask(task.id, toInput(task, { priority: col.key as Priority }));
+    } else if (col.projectId !== undefined) {
+      void updateTask(task.id, toInput(task, { projectId: col.projectId, sectionId: col.sectionId ?? null }));
+    }
+  }
+
   return (
     <div
       ref={containerRef}
@@ -66,7 +88,12 @@ export function Board({
       onMouseDown={handleMouseDown}
     >
       {columns.map((col) => (
-        <div key={col.key} className="board-col">
+        <div
+          key={col.key}
+          className="board-col"
+          onDragOver={handleDragOver}
+          onDrop={(e) => handleDrop(col, e)}
+        >
           <div className="board-col-header">
             <h2 className="group-title">
               {col.title}
@@ -75,7 +102,16 @@ export function Board({
           </div>
           <div className="task-list">
             {col.tasks.map((task) => (
-              <TaskRow key={task.id} task={task} />
+              <div
+                key={task.id}
+                draggable
+                onDragStart={(e) => {
+                  e.dataTransfer.setData("text/plain", task.id);
+                  e.dataTransfer.effectAllowed = "move";
+                }}
+              >
+                <TaskRow task={task} />
+              </div>
             ))}
           </div>
           <div className="board-col-footer">
@@ -84,30 +120,6 @@ export function Board({
         </div>
       ))}
       {extraColumn}
-    </div>
-  );
-}
-
-export function LayoutSwitch() {
-  const layout = useUi((s) => s.layout);
-  const setLayout = useUi((s) => s.setLayout);
-  const options: { id: Layout; label: string }[] = [
-    { id: "list", label: "List" },
-    { id: "board", label: "Board" },
-  ];
-
-  return (
-    <div className="theme-chips">
-      {options.map((o) => (
-        <button
-          key={o.id}
-          className="chip"
-          aria-pressed={layout === o.id}
-          onClick={() => setLayout(o.id)}
-        >
-          {o.label}
-        </button>
-      ))}
     </div>
   );
 }

@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { addDays, format, parseISO } from "date-fns";
 
 import { useTheme } from "../../app/ThemeProvider";
@@ -7,6 +8,8 @@ import { DisplayMenu } from "../../components/DisplayMenu";
 import { Group } from "../../components/Group";
 import { Icon } from "../../components/Icon";
 import { Mascot } from "../../components/Mascot";
+import { QuickFilterBar } from "../../components/QuickFilterBar";
+import { BatchToolbar } from "../../components/BatchToolbar";
 import { sortTasks } from "../../lib/sortTasks";
 import { todayIso, useTasks } from "../../stores/tasks.store";
 import { ListId, useUi } from "../../stores/ui.store";
@@ -46,6 +49,13 @@ export function ListView({ id }: { id: ListId }) {
   const sort = useUi((s) => s.sort);
   const filterPriority = useUi((s) => s.filterPriority);
   const filterTag = useUi((s) => s.filterTag);
+  const [selectedBatchIds, setSelectedBatchIds] = useState<string[]>([]);
+
+  function toggleSelectTask(taskId: string) {
+    setSelectedBatchIds((prev) =>
+      prev.includes(taskId) ? prev.filter((id) => id !== taskId) : [...prev, taskId]
+    );
+  }
 
   function applyFilters(list: Task[]): Task[] {
     let res = list;
@@ -101,6 +111,8 @@ export function ListView({ id }: { id: ListId }) {
         )}
       </header>
 
+      {(id === "today" || id === "upcoming" || id === "inbox") && <QuickFilterBar />}
+
       {id === "upcoming" && (
         <div className="week-strip">
           {days.map((d) => (
@@ -134,7 +146,14 @@ export function ListView({ id }: { id: ListId }) {
       {error && <p className="error-text">{error}</p>}
 
       <div style={{ marginTop: 16 }}>
-        {id === "inbox" && inbox.length > 0 && <Group title="Inbox" tasks={inbox} />}
+        {id === "inbox" && inbox.length > 0 && (
+          <Group
+            title="Inbox"
+            tasks={inbox}
+            selectedIds={selectedBatchIds}
+            onSelectTask={toggleSelectTask}
+          />
+        )}
 
         {id === "today" && layout === "list" && (
           <>
@@ -143,7 +162,15 @@ export function ListView({ id }: { id: ListId }) {
                 {PRIORITY_COLUMNS.map((col) => {
                   const tasksInPriority = applyFilters(rawDueNow.filter((t) => t.priority === col.key));
                   if (tasksInPriority.length === 0) return null;
-                  return <Group key={col.key} title={col.title} tasks={tasksInPriority} />;
+                  return (
+                    <Group
+                      key={col.key}
+                      title={col.title}
+                      tasks={tasksInPriority}
+                      selectedIds={selectedBatchIds}
+                      onSelectTask={toggleSelectTask}
+                    />
+                  );
                 })}
               </>
             )}
@@ -154,11 +181,26 @@ export function ListView({ id }: { id: ListId }) {
                   const noProjectTasks = applyFilters(rawDueNow.filter((t) => !t.projectId));
                   return (
                     <>
-                      {noProjectTasks.length > 0 && <Group title="Inbox" tasks={noProjectTasks} />}
+                      {noProjectTasks.length > 0 && (
+                        <Group
+                          title="Inbox"
+                          tasks={noProjectTasks}
+                          selectedIds={selectedBatchIds}
+                          onSelectTask={toggleSelectTask}
+                        />
+                      )}
                       {projects.map((p) => {
                         const projectTasks = applyFilters(rawDueNow.filter((t) => t.projectId === p.id));
                         if (projectTasks.length === 0) return null;
-                        return <Group key={p.id} title={p.name} tasks={projectTasks} />;
+                        return (
+                          <Group
+                            key={p.id}
+                            title={p.name}
+                            tasks={projectTasks}
+                            selectedIds={selectedBatchIds}
+                            onSelectTask={toggleSelectTask}
+                          />
+                        );
                       })}
                     </>
                   );
@@ -176,9 +218,24 @@ export function ListView({ id }: { id: ListId }) {
                       {allTodayTags.map((tag) => {
                         const taggedTasks = applyFilters(rawDueNow.filter((t) => t.tags.includes(tag)));
                         if (taggedTasks.length === 0) return null;
-                        return <Group key={tag} title={`@${tag}`} tasks={taggedTasks} />;
+                        return (
+                          <Group
+                            key={tag}
+                            title={`@${tag}`}
+                            tasks={taggedTasks}
+                            selectedIds={selectedBatchIds}
+                            onSelectTask={toggleSelectTask}
+                          />
+                        );
                       })}
-                      {untagged.length > 0 && <Group title="No label" tasks={untagged} />}
+                      {untagged.length > 0 && (
+                        <Group
+                          title="No label"
+                          tasks={untagged}
+                          selectedIds={selectedBatchIds}
+                          onSelectTask={toggleSelectTask}
+                        />
+                      )}
                     </>
                   );
                 })()}
@@ -187,13 +244,32 @@ export function ListView({ id }: { id: ListId }) {
 
             {groupBy === "none" && (
               <>
-                {overdue.length > 0 && <Group title="Overdue" tasks={applyFilters(overdue)} />}
-                {today.length > 0 && <Group title="Today" tasks={applyFilters(today)} />}
+                {overdue.length > 0 && (
+                  <Group
+                    title="Overdue"
+                    tasks={applyFilters(overdue)}
+                    selectedIds={selectedBatchIds}
+                    onSelectTask={toggleSelectTask}
+                  />
+                )}
+                {today.length > 0 && (
+                  <Group
+                    title="Today"
+                    tasks={applyFilters(today)}
+                    selectedIds={selectedBatchIds}
+                    onSelectTask={toggleSelectTask}
+                  />
+                )}
               </>
             )}
 
             {showCompleted && completedToday.length > 0 && (
-              <Group title="Completed" tasks={applyFilters(completedToday)} />
+              <Group
+                title="Completed"
+                tasks={applyFilters(completedToday)}
+                selectedIds={selectedBatchIds}
+                onSelectTask={toggleSelectTask}
+              />
             )}
           </>
         )}
@@ -302,6 +378,11 @@ export function ListView({ id }: { id: ListId }) {
           </div>
         )}
       </div>
+
+      <BatchToolbar
+        selectedIds={selectedBatchIds}
+        onClear={() => setSelectedBatchIds([])}
+      />
     </div>
   );
 }

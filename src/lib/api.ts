@@ -46,4 +46,5 @@ export const api = {
   restoreTask: (id: string) => invoke<void>("restore_task", { id }),
   permanentDeleteTask: (id: string) => invoke<void>("permanent_delete_task", { id }),
   emptyTrash: () => invoke<number>("empty_trash"),
+  searchTasksFts: (query: string) => invoke<Task[]>("search_tasks_fts", { query }),
 };

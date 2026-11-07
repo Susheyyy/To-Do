@@ -52,8 +52,9 @@ pub fn run() {
             });
 
             let show_item = MenuItem::with_id(app, "show", "Open To-Do", true, None::<&str>)?;
+            let quick_add_item = MenuItem::with_id(app, "quick_add", "Quick Add Task...", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&show_item, &quick_add_item, &quit_item])?;
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
@@ -95,6 +96,12 @@ pub fn run() {
                             let _ = win.set_focus();
                         }
                     }
+                    "quick_add" => {
+                        if let Some(win) = app.get_webview_window("floating-bar") {
+                            let _ = win.show();
+                            let _ = win.set_focus();
+                        }
+                    }
                     "quit" => {
                         app.exit(0);
                     }
@@ -106,14 +113,14 @@ pub fn run() {
                 Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space);
             app.global_shortcut()
                 .on_shortcut(shortcut, |app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        if let Some(win) = app.get_webview_window("floating-bar") {
-                            if win.is_visible().unwrap_or(false) {
-                                let _ = win.hide();
-                            } else {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
+                    if event.state() == ShortcutState::Pressed
+                        && let Some(win) = app.get_webview_window("floating-bar")
+                    {
+                        if win.is_visible().unwrap_or(false) {
+                            let _ = win.hide();
+                        } else {
+                            let _ = win.show();
+                            let _ = win.set_focus();
                         }
                     }
                 })?;
@@ -129,20 +136,15 @@ pub fn run() {
                     let _ = win.show();
                     let _ = win.set_focus();
                 }
-            } else if !args.contains(&"--minimized".to_string()) {
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                }
+            } else if !args.contains(&"--minimized".to_string())
+                && let Some(win) = app.get_webview_window("main")
+            {
+                let _ = win.show();
             }
 
-            // ── Auto-backup background thread ────────────────────────────────
-            // Runs every 30 minutes while the app is open. Opens its own fresh
-            // SQLite connection (not the shared Mutex one) so it never blocks
-            // the UI thread. Keeps up to 7 rolling backups.
             {
                 let app_data_dir = app.path().app_data_dir()?;
                 std::thread::spawn(move || {
-                    // 5-minute initial delay so startup I/O settles first.
                     std::thread::sleep(Duration::from_secs(5 * 60));
                     loop {
                         match db::create_auto_backup(&app_data_dir) {
@@ -175,6 +177,7 @@ pub fn run() {
             tasks::restore_task,
             tasks::permanent_delete_task,
             tasks::empty_trash,
+            tasks::search_tasks_fts,
             projects::create_project,
             projects::list_projects,
             projects::delete_project,
@@ -201,11 +204,11 @@ pub fn run() {
             export::export_csv,
         ])
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    let _ = window.hide();
-                    api.prevent_close();
-                }
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+            {
+                let _ = window.hide();
+                api.prevent_close();
             }
         })
         .run(tauri::generate_context!())

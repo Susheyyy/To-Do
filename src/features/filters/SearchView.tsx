@@ -1,10 +1,12 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Group } from "../../components/Group";
 import { Icon } from "../../components/Icon";
+import { api } from "../../lib/api";
 import { sortTasks } from "../../lib/sortTasks";
 import { useTasks } from "../../stores/tasks.store";
 import { useUi } from "../../stores/ui.store";
+import type { Task } from "../../types/models";
 
 export function SearchModal() {
   const open = useTasks((s) => s.open);
@@ -15,6 +17,7 @@ export function SearchModal() {
   const searchQuery = useUi((s) => s.searchQuery);
   const setSearchQuery = useUi((s) => s.setSearchQuery);
   const inputRef = useRef<HTMLInputElement>(null);
+  const [ftsResults, setFtsResults] = useState<Task[]>([]);
 
   useEffect(() => {
     if (searchOpen) {
@@ -22,22 +25,47 @@ export function SearchModal() {
     }
   }, [searchOpen]);
 
+  useEffect(() => {
+    const q = searchQuery.trim();
+    if (!q) {
+      setFtsResults([]);
+      return;
+    }
+    // Query SQLite FTS5 engine for fast trigram and full-text matches
+    let active = true;
+    api.searchTasksFts(q).then((rows) => {
+      if (active) setFtsResults(rows);
+    }).catch(() => {
+      if (active) setFtsResults([]);
+    });
+    return () => {
+      active = false;
+    };
+  }, [searchQuery]);
+
   if (!searchOpen) return null;
 
   const allTasks = [...open, ...completedToday];
   const query = searchQuery.trim().toLowerCase();
 
-  const results = query
-    ? sortTasks(
-        allTasks.filter((t) => {
-          const matchTitle = t.title.toLowerCase().includes(query);
-          const matchNotes = t.notes ? t.notes.toLowerCase().includes(query) : false;
-          const matchTags = t.tags.some((tag) => tag.toLowerCase().includes(query));
-          return matchTitle || matchNotes || matchTags;
-        }),
-        sort
-      )
-    : [];
+  // Combine FTS5 results with active in-memory items
+  const combinedMap = new Map<string, Task>();
+  for (const t of ftsResults) {
+    combinedMap.set(t.id, t);
+  }
+  if (query) {
+    for (const t of allTasks) {
+      if (
+        t.title.toLowerCase().includes(query) ||
+        (t.notes && t.notes.toLowerCase().includes(query)) ||
+        t.tags.some((tag) => tag.toLowerCase().includes(query))
+      ) {
+        combinedMap.set(t.id, t);
+      }
+    }
+  }
+
+  const results = sortTasks(Array.from(combinedMap.values()), sort);
 
   return (
     <div className="modal-backdrop" onMouseDown={closeSearch}>

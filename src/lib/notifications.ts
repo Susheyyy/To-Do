@@ -57,7 +57,7 @@ export function NotificationManager() {
           granted = permission === "granted";
         }
       } catch {
-        // Fallback or non-tauri context
+        
       }
     }
     void checkPermission();
@@ -118,7 +118,13 @@ export function NotificationManager() {
         const taskKey = `${task.id}_${task.dueDate}_${task.dueTime}`;
         if (notifiedTasksRef.current.has(taskKey)) continue;
 
-        if (task.dueDate === todayDateStr && task.dueTime === nowTimeStr) {
+        const [tH, tM] = task.dueTime.split(":").map(Number);
+        const [nH, nM] = nowTimeStr.split(":").map(Number);
+        const taskMinutes = tH * 60 + tM;
+        const nowMinutes = nH * 60 + nM;
+        const diffMinutes = nowMinutes - taskMinutes;
+
+        if (task.dueDate === todayDateStr && diffMinutes >= 0 && diffMinutes <= 5) {
           notifiedTasksRef.current.add(taskKey);
           try {
             sendNotification({
