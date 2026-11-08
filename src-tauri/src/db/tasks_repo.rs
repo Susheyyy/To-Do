@@ -343,6 +343,14 @@ pub fn empty_trash(conn: &Connection) -> AppResult<usize> {
     Ok(count)
 }
 
+pub fn auto_purge_trash(conn: &Connection) -> AppResult<usize> {
+    let count = conn.execute(
+        "DELETE FROM tasks WHERE deleted_at IS NOT NULL AND julianday('now') - julianday(deleted_at) > 30",
+        [],
+    )?;
+    Ok(count)
+}
+
 pub fn list_trash(conn: &Connection) -> AppResult<Vec<Task>> {
     collect(
         conn,

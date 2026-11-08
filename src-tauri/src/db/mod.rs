@@ -1,6 +1,7 @@
 pub mod habits_repo;
 pub mod projects_repo;
 pub mod recur;
+pub mod sync_repo;
 pub mod tasks_repo;
 
 use std::path::{Path, PathBuf};
@@ -15,6 +16,7 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("003_recurring_habits", include_str!("migrations/003_recurring_habits.sql")),
     ("004_perf_indexes", include_str!("migrations/004_perf_indexes.sql")),
     ("005_fts", include_str!("migrations/005_fts.sql")),
+    ("006_sync_engine", include_str!("migrations/006_sync_engine.sql")),
 ];
 
 

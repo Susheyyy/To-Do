@@ -25,6 +25,8 @@ interface SettingsState {
   setMorningBriefingTime: (time: string) => void;
   floatingBarPosition: { x: number; y: number } | null;
   setFloatingBarPosition: (pos: { x: number; y: number } | null) => void;
+  trayClickAction: "quick-capture" | "floating-bar" | "main";
+  setTrayClickAction: (action: "quick-capture" | "floating-bar" | "main") => void;
 }
 
 let isBroadcasting = false;
@@ -86,6 +88,11 @@ export const useSettings = create<SettingsState>()(
       setFloatingBarPosition: (floatingBarPosition) => {
         set({ floatingBarPosition });
         broadcastSettings({ floatingBarPosition });
+      },
+      trayClickAction: "quick-capture",
+      setTrayClickAction: (trayClickAction) => {
+        set({ trayClickAction });
+        broadcastSettings({ trayClickAction });
       },
     }),
     { name: "todo.settings" }

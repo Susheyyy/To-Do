@@ -16,7 +16,7 @@ use tauri::{
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-use commands::{backup, export, habits, history, projects, tasks, tray};
+use commands::{backup, export, habits, history, projects, sync, tasks, tray};
 use services::history::History;
 use state::AppState;
 
@@ -46,6 +46,7 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             let mut conn = db::open(&dir).map_err(|e| e.to_string())?;
             let _ = db::tasks_repo::generate_missed_recurring(&mut conn);
+            let _ = db::tasks_repo::auto_purge_trash(&conn);
             app.manage(AppState {
                 db: Mutex::new(conn),
                 history: Mutex::new(History::default()),
@@ -68,7 +69,27 @@ pub fn run() {
                             button_state: MouseButtonState::Up,
                             ..
                         } => {
-                            if let Some(win) = app.get_webview_window("quick-capture") {
+                            let action = if let Some(state) = app.try_state::<AppState>() {
+                                if let Ok(c) = state.conn() {
+                                    c.query_row(
+                                        "SELECT value FROM sync_metadata WHERE key = 'tray_click_action'",
+                                        [],
+                                        |r| r.get::<_, String>(0),
+                                    ).unwrap_or_else(|_| "quick-capture".to_string())
+                                } else {
+                                    "quick-capture".to_string()
+                                }
+                            } else {
+                                "quick-capture".to_string()
+                            };
+
+                            let win_name = match action.as_str() {
+                                "floating-bar" => "floating-bar",
+                                "main" => "main",
+                                _ => "quick-capture",
+                            };
+
+                            if let Some(win) = app.get_webview_window(win_name) {
                                 if win.is_visible().unwrap_or(false) {
                                     let _ = win.hide();
                                 } else {
@@ -190,6 +211,7 @@ pub fn run() {
             tray::update_tray_badge,
             tray::hide_window,
             tray::start_dragging,
+            tray::set_tray_click_action,
             habits::create_habit,
             habits::list_habits,
             habits::update_habit,
@@ -202,6 +224,11 @@ pub fn run() {
             backup::restore_backup,
             export::export_json,
             export::export_csv,
+            sync::get_sync_status,
+            sync::set_sync_config,
+            sync::get_unsynced_items,
+            sync::mark_synced,
+            sync::apply_sync_changes,
         ])
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event

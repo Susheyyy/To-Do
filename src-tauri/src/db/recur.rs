@@ -122,3 +122,35 @@ pub fn label(rule: &str) -> &'static str {
     }
 }
 
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn test_daily_recurrence() {
+        let next = next_due("2026-11-01", "daily");
+        assert_eq!(next, Some("2026-11-02".to_string()));
+    }
+
+    #[test]
+    fn test_weekdays_recurrence() {
+        // Friday to Monday
+        let friday = "2026-11-06";
+        let next = next_due(friday, "weekdays");
+        assert_eq!(next, Some("2026-11-09".to_string()));
+    }
+
+    #[test]
+    fn test_monthly_recurrence() {
+        let start = "2026-01-15";
+        let next = next_due(start, "monthly");
+        assert_eq!(next, Some("2026-02-15".to_string()));
+    }
+
+    #[test]
+    fn test_normalization() {
+        assert_eq!(normalise("Every Day"), Some("daily".to_string()));
+        assert_eq!(normalise("every weekday"), Some("weekdays".to_string()));
+    }
+}
+

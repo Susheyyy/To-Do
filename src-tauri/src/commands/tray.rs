@@ -32,3 +32,14 @@ pub fn start_dragging(app: AppHandle, label: String) -> Result<(), String> {
     }
     Ok(())
 }
+
+#[tauri::command]
+pub fn set_tray_click_action(state: tauri::State<'_, crate::state::AppState>, action: String) -> Result<(), String> {
+    let conn = state.conn().map_err(|e| e.to_string())?;
+    conn.execute(
+        "INSERT INTO sync_metadata (key, value) VALUES ('tray_click_action', ?1)
+         ON CONFLICT(key) DO UPDATE SET value = excluded.value",
+        rusqlite::params![action],
+    ).map_err(|e| e.to_string())?;
+    Ok(())
+}

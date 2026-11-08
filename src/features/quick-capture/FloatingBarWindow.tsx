@@ -26,12 +26,19 @@ export function FloatingBarWindow() {
   const floatingBarPosition = useSettings((s) => s.floatingBarPosition);
   const setFloatingBarPosition = useSettings((s) => s.setFloatingBarPosition);
 
-  // Restore saved coordinates on mount
+  // Restore saved coordinates on mount with multi-monitor boundary clamping
   useEffect(() => {
-    if (floatingBarPosition) {
-      void getCurrentWindow().setPosition(
-        new LogicalPosition(floatingBarPosition.x, floatingBarPosition.y)
-      );
+    if (floatingBarPosition && typeof window !== "undefined") {
+      const screenWidth = window.screen.availWidth || 1920;
+      const screenHeight = window.screen.availHeight || 1080;
+      const barWidth = 640;
+      const barHeight = 68;
+
+      // Ensure window stays inside current visible display dimensions
+      const clampedX = Math.max(10, Math.min(floatingBarPosition.x, screenWidth - barWidth - 10));
+      const clampedY = Math.max(10, Math.min(floatingBarPosition.y, screenHeight - barHeight - 10));
+
+      void getCurrentWindow().setPosition(new LogicalPosition(clampedX, clampedY));
     }
   }, []);
 

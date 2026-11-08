@@ -4,6 +4,7 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { ThemePicker } from "../../components/ThemePicker";
 import { api } from "../../lib/api";
 import { useSettings } from "../../stores/settings.store";
+import { SyncSettingsSection } from "./SyncSettingsSection";
 
 export function SettingsView() {
   const clock = useSettings((s) => s.clock);
@@ -23,6 +24,8 @@ export function SettingsView() {
   const morningBriefingTime = useSettings((s) => s.morningBriefingTime);
   const setMorningBriefingTime = useSettings((s) => s.setMorningBriefingTime);
 
+  const trayClickAction = useSettings((s) => s.trayClickAction);
+  const setTrayClickAction = useSettings((s) => s.setTrayClickAction);
   const [autostart, setAutostart] = useState(false);
   const [backupMsg, setBackupMsg] = useState("");
 
@@ -194,7 +197,12 @@ export function SettingsView() {
       </section>
 
       <section className="card settings-group">
-        <h2 className="group-title">System</h2>
+        <h2 className="group-title">Cross-Device Sync</h2>
+        <SyncSettingsSection />
+      </section>
+
+      <section className="card settings-group">
+        <h2 className="group-title">System & Tray</h2>
         <div className="settings-row">
           <span className="settings-label">Start on login</span>
           <button
@@ -205,6 +213,30 @@ export function SettingsView() {
           >
             <span className="toggle-thumb" />
           </button>
+        </div>
+
+        <div className="settings-row">
+          <span className="settings-label">System Tray Left-Click Action</span>
+          <select
+            value={trayClickAction}
+            onChange={(e) => {
+              const val = e.target.value as "quick-capture" | "floating-bar" | "main";
+              setTrayClickAction(val);
+              void api.setTrayClickAction(val);
+            }}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "8px",
+              background: "var(--color-bg-secondary, #1a1a20)",
+              border: "1px solid var(--color-border, #2d2d38)",
+              color: "var(--color-text-primary, #ffffff)",
+              fontSize: "13px",
+            }}
+          >
+            <option value="quick-capture">Quick Capture Popup (Default)</option>
+            <option value="floating-bar">Quick Add Floating Bar</option>
+            <option value="main">Toggle Main App Window</option>
+          </select>
         </div>
       </section>
 
