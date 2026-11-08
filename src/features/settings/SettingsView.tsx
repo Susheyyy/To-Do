@@ -323,6 +323,11 @@ export function SettingsView() {
               </button>
             )}
           </div>
+          {!gcalConfig.isConnected && (
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary, #8f8fa0)" }}>
+              Need a Client ID? See the step-by-step instructions in the project <code>README.md</code> or the Google Cloud Console.
+            </p>
+          )}
           {gcalConfig.isConnected && (
             <p style={{ margin: "4px 0 0", fontSize: 12, color: "#10b981" }}>
               ✓ Connected. Syncing tasks to dedicated "Todo Desktop" Google calendar.
