@@ -83,12 +83,14 @@ pub fn restore_backup(app: AppHandle, state: State<AppState>, filename: String) 
         let _ = fs::copy(&db_path, &safety);
     }
 
-    
-    let conn = state.conn()?;
-    
-    let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
-    drop(conn);
 
-    fs::copy(&backup_path, &db_path)?;
+    let mut conn = state.conn()?;
+    let src_conn = rusqlite::Connection::open(&backup_path)?;
+    {
+        let backup = rusqlite::backup::Backup::new(&src_conn, &mut *conn)?;
+        backup.run_to_completion(100, std::time::Duration::from_millis(250), None)?;
+    }
+
+    let _ = conn.execute_batch("PRAGMA wal_checkpoint(FULL);");
     Ok(())
 }

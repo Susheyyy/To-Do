@@ -1,26 +1,50 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
 import type { Habit, HabitInput, HabitLog, Project, Section, Task, TaskInput } from "../types/models";
 
-// Detect if running inside desktop Tauri shell or mobile/tablet browser / PWA
+
 export const isTauri =
   typeof window !== "undefined" &&
   ("__TAURI_INTERNALS__" in window || "__TAURI__" in window);
 
-// In-memory fallback database for mobile/tablet PWA runs outside Tauri desktop
+
+const STORAGE_KEY_TASKS = "todo_pwa_tasks";
+const STORAGE_KEY_PROJECTS = "todo_pwa_projects";
+const STORAGE_KEY_HABITS = "todo_pwa_habits";
+const STORAGE_KEY_LOGS = "todo_pwa_logs";
+
+function loadLocal<T>(key: string, fallback: T): T {
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = localStorage.getItem(key);
+    return raw ? JSON.parse(raw) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function saveLocal<T>(key: string, data: T) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(key, JSON.stringify(data));
+  } catch (err) {
+    console.warn("Failed to persist data in browser storage:", err);
+  }
+}
+
 const mockStorage = {
-  tasks: [] as Task[],
-  projects: [] as Project[],
-  habits: [] as Habit[],
-  logs: [] as HabitLog[],
+  tasks: loadLocal<Task[]>(STORAGE_KEY_TASKS, []),
+  projects: loadLocal<Project[]>(STORAGE_KEY_PROJECTS, []),
+  habits: loadLocal<Habit[]>(STORAGE_KEY_HABITS, []),
+  logs: loadLocal<HabitLog[]>(STORAGE_KEY_LOGS, []),
 };
 
-// Safe invoke wrapper
+
 async function safeInvoke<T>(cmd: string, args: Record<string, unknown> = {}): Promise<T> {
   if (isTauri) {
     return tauriInvoke<T>(cmd, args);
   }
 
-  // Mobile / Web Browser Fallback handler
+
   console.debug(`[Web/PWA Fallback] executing mock command: ${cmd}`, args);
 
   switch (cmd) {
@@ -55,6 +79,7 @@ async function safeInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
         updatedAt: new Date().toISOString(),
       };
       mockStorage.tasks.push(newTask);
+      saveLocal(STORAGE_KEY_TASKS, mockStorage.tasks);
       return newTask as unknown as T;
     }
     case "set_task_completed": {
@@ -63,6 +88,7 @@ async function safeInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
       const t = mockStorage.tasks.find((item) => item.id === id);
       if (t) {
         t.completedAt = done ? new Date().toISOString() : null;
+        saveLocal(STORAGE_KEY_TASKS, mockStorage.tasks);
       }
       return (t || {}) as unknown as T;
     }
@@ -122,6 +148,7 @@ export const api = {
   createBackup: () => safeInvoke<string>("create_backup"),
   exportJson: () => safeInvoke<string>("export_json"),
   exportCsv: () => safeInvoke<string>("export_csv"),
+  exportIcal: () => safeInvoke<string>("export_ical"),
   generateRecurring: () => safeInvoke<number>("generate_recurring"),
   rescheduleOverdue: (targetDate: string) =>
     safeInvoke<number>("reschedule_overdue", { targetDate }),

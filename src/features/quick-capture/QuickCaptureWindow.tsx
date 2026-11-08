@@ -25,31 +25,48 @@ export function QuickCaptureWindow() {
   
   useEffect(() => {
     let cleanup: (() => void) | undefined;
+    let blurTimeout: any = null;
+
     getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
         if (focused) {
+          if (blurTimeout) clearTimeout(blurTimeout);
           void load();
         } else if (!isDraggingRef.current) {
-          void closeWindow();
+
+          blurTimeout = setTimeout(() => {
+            if (!isDraggingRef.current) {
+              void closeWindow();
+            }
+          }, 120);
         }
       })
       .then((unlisten) => {
         cleanup = unlisten;
       });
+
     return () => {
       cleanup?.();
+      if (blurTimeout) clearTimeout(blurTimeout);
     };
   }, [load]);
 
-  
   useEffect(() => {
+    let blurTimeout: any = null;
     function handleBlur() {
       if (!isDraggingRef.current) {
-        void closeWindow();
+        blurTimeout = setTimeout(() => {
+          if (!isDraggingRef.current) {
+            void closeWindow();
+          }
+        }, 120);
       }
     }
     window.addEventListener("blur", handleBlur);
-    return () => window.removeEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      if (blurTimeout) clearTimeout(blurTimeout);
+    };
   }, []);
 
   

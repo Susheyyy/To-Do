@@ -148,3 +148,76 @@ CREATE TRIGGER IF NOT EXISTS trg_sync_project_update AFTER UPDATE ON projects BE
     );
 END;
 
+-- Habit sync triggers
+CREATE TRIGGER IF NOT EXISTS trg_sync_habit_insert AFTER INSERT ON habits BEGIN
+    INSERT INTO sync_log (entity_type, entity_id, op_type, payload, client_timestamp, synced_at)
+    VALUES (
+        'habit',
+        new.id,
+        'upsert',
+        json_object(
+            'id', new.id,
+            'name', new.name,
+            'color', new.color,
+            'icon', new.icon,
+            'frequency', new.frequency,
+            'custom_days', new.custom_days,
+            'target_streak', new.target_streak,
+            'deleted_at', new.deleted_at
+        ),
+        datetime('now'),
+        NULL
+    );
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_sync_habit_update AFTER UPDATE ON habits BEGIN
+    INSERT INTO sync_log (entity_type, entity_id, op_type, payload, client_timestamp, synced_at)
+    VALUES (
+        'habit',
+        new.id,
+        'upsert',
+        json_object(
+            'id', new.id,
+            'name', new.name,
+            'color', new.color,
+            'icon', new.icon,
+            'frequency', new.frequency,
+            'custom_days', new.custom_days,
+            'target_streak', new.target_streak,
+            'deleted_at', new.deleted_at
+        ),
+        datetime('now'),
+        NULL
+    );
+END;
+
+-- Habit log checkoff sync triggers
+CREATE TRIGGER IF NOT EXISTS trg_sync_habit_log_insert AFTER INSERT ON habit_logs BEGIN
+    INSERT INTO sync_log (entity_type, entity_id, op_type, payload, client_timestamp, synced_at)
+    VALUES (
+        'habit_log',
+        new.id,
+        'upsert',
+        json_object(
+            'id', new.id,
+            'habit_id', new.habit_id,
+            'logged_date', new.logged_date,
+            'created_at', new.created_at
+        ),
+        datetime('now'),
+        NULL
+    );
+END;
+
+CREATE TRIGGER IF NOT EXISTS trg_sync_habit_log_delete AFTER DELETE ON habit_logs BEGIN
+    INSERT INTO sync_log (entity_type, entity_id, op_type, payload, client_timestamp, synced_at)
+    VALUES (
+        'habit_log',
+        old.id,
+        'delete',
+        json_object('id', old.id, 'habit_id', old.habit_id, 'logged_date', old.logged_date),
+        datetime('now'),
+        NULL
+    );
+END;
+

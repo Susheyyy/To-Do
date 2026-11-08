@@ -77,6 +77,14 @@ export function QuickAdd({
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
+
+    return () => {
+      if (recognizerRef.current) {
+        try {
+          recognizerRef.current.abort();
+        } catch {}
+      }
+    };
   }, [autoFocus]);
 
   const due = parsed.dueDate ?? defaultDue;
@@ -129,7 +137,7 @@ export function QuickAdd({
     e.preventDefault();
     if (!parsed.title) return;
 
-    // NLP Habit Logging support: "done workout", "log read", "habit meditation"
+
     const lower = text.trim().toLowerCase();
     const habitMatch = lower.match(/^(?:done|log|check|habit)\s+(.+)$/i);
     if (habitMatch) {

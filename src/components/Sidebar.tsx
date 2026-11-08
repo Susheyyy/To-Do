@@ -7,6 +7,7 @@ import { useTasks } from "../stores/tasks.store";
 import { ListId, useUi } from "../stores/ui.store";
 import { Icon } from "./Icon";
 import { Mascot } from "./Mascot";
+import { AnalyticsModal } from "./AnalyticsModal";
 
 const NAV: { id: ListId | "search"; label: string; icon: "search" | "inbox" | "sun" | "upcoming" | "filter" | "calendar" | "habit" | "trash" }[] = [
   { id: "search", label: "Search", icon: "search" },
@@ -38,6 +39,7 @@ export function Sidebar() {
 
   const [adding, setAdding] = useState(false);
   const [name, setName] = useState("");
+  const [analyticsOpen, setAnalyticsOpen] = useState(false);
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -111,15 +113,35 @@ export function Sidebar() {
                   ? "🎉 Daily target reached! Great job!"
                   : `${dailyGoal - completedToday.length} more task${dailyGoal - completedToday.length === 1 ? "" : "s"} to reach today's goal.`}
               </div>
-              <button
-                className="profile-popup-settings-btn"
-                onClick={() => {
-                  setProfileOpen(false);
-                  setView("settings");
-                }}
-              >
-                Change goal in Settings
-              </button>
+              <div style={{ display: "flex", flexDirection: "column", gap: "6px", marginTop: "4px" }}>
+                <button
+                  className="profile-popup-settings-btn"
+                  style={{
+                    backgroundColor: "var(--color-accent-subtle, rgba(99, 102, 241, 0.15))",
+                    color: "var(--color-accent, #6366f1)",
+                    fontWeight: 600,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    gap: "6px",
+                  }}
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setAnalyticsOpen(true);
+                  }}
+                >
+                  📊 View Productivity Analytics & Heatmap
+                </button>
+                <button
+                  className="profile-popup-settings-btn"
+                  onClick={() => {
+                    setProfileOpen(false);
+                    setView("settings");
+                  }}
+                >
+                  Change goal in Settings
+                </button>
+              </div>
             </div>
           )}
         </div>
@@ -205,6 +227,12 @@ export function Sidebar() {
           <span className="nav-label">Settings</span>
         </button>
       </div>
+
+      <AnalyticsModal
+        isOpen={analyticsOpen}
+        onClose={() => setAnalyticsOpen(false)}
+        dailyGoal={dailyGoal}
+      />
     </aside>
   );
 }

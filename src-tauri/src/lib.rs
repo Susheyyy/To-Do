@@ -24,6 +24,19 @@ use state::AppState;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+
+            let deep_url = args.iter().find(|a| a.starts_with("todo://"));
+            if let Some(url_str) = deep_url {
+
+                if url_str.contains("create") || url_str.contains("add") {
+                    if let Some(win) = app.get_webview_window("quick-capture") {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                        return;
+                    }
+                }
+            }
+
             if args.iter().any(|a| a == "--quick" || a == "-q") {
                 if let Some(win) = app.get_webview_window("quick-capture") {
                     let _ = win.show();
@@ -47,6 +60,7 @@ pub fn run() {
             let mut conn = db::open(&dir).map_err(|e| e.to_string())?;
             let _ = db::tasks_repo::generate_missed_recurring(&mut conn);
             let _ = db::tasks_repo::auto_purge_trash(&conn);
+            let _ = db::sync_repo::auto_purge_synced_log(&conn);
             app.manage(AppState {
                 db: Mutex::new(conn),
                 history: Mutex::new(History::default()),
@@ -124,6 +138,12 @@ pub fn run() {
                         }
                     }
                     "quit" => {
+
+                        if let Some(state) = app.try_state::<AppState>() {
+                            if let Ok(conn) = state.conn() {
+                                let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+                            }
+                        }
                         app.exit(0);
                     }
                     _ => {}
@@ -132,19 +152,26 @@ pub fn run() {
 
             let shortcut =
                 Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space);
-            app.global_shortcut()
-                .on_shortcut(shortcut, |app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed
-                        && let Some(win) = app.get_webview_window("floating-bar")
-                    {
-                        if win.is_visible().unwrap_or(false) {
-                            let _ = win.hide();
-                        } else {
-                            let _ = win.show();
-                            let _ = win.set_focus();
-                        }
+            if let Err(err) = app.global_shortcut().on_shortcut(shortcut, |app, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed
+                    && let Some(win) = app.get_webview_window("floating-bar")
+                {
+                    if win.is_visible().unwrap_or(false) {
+                        let _ = win.hide();
+                    } else {
+                        let _ = win.show();
+                        let _ = win.set_always_on_top(true);
+                        let _ = win.set_focus();
+                        let win_c = win.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(Duration::from_millis(80));
+                            let _ = win_c.set_focus();
+                        });
                     }
-                })?;
+                }
+            }) {
+                eprintln!("[shortcut] Failed to register global shortcut (Ctrl+Alt+Space): {err}. Wayland or OS hotkey manager might restrict global registration.");
+            }
 
             let args: Vec<String> = std::env::args().collect();
             let autolaunch = app.autolaunch();
@@ -224,6 +251,7 @@ pub fn run() {
             backup::restore_backup,
             export::export_json,
             export::export_csv,
+            export::export_ical,
             sync::get_sync_status,
             sync::set_sync_config,
             sync::get_unsynced_items,

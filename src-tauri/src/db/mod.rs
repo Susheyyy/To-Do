@@ -47,13 +47,13 @@ fn open_with_recovery(dir: &Path, db_path: &Path) -> AppResult<Connection> {
                 candidates.sort_by(|a, b| b.cmp(a)); 
                 for candidate in candidates {
                     eprintln!("[db] trying backup {:?}", candidate);
-                    if let Ok(conn) = try_open(&candidate) {
-                        
+                    if try_open(&candidate).is_ok() {
                         if let Err(e) = std::fs::copy(&candidate, db_path) {
-                            eprintln!("[db] could not restore backup file: {e}");
+                            eprintln!("[db] could not restore backup file to primary path: {e}");
+                        } else if let Ok(restored_conn) = try_open(db_path) {
+                            eprintln!("[db] successfully restored primary db from backup {:?}", candidate);
+                            return Ok(restored_conn);
                         }
-                        eprintln!("[db] recovered from backup {:?}", candidate);
-                        return Ok(conn);
                     }
                 }
             }
@@ -66,11 +66,9 @@ fn try_open(path: &Path) -> AppResult<Connection> {
     let conn = Connection::open(path)?;
     
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
-    
-    
     conn.execute_batch("PRAGMA synchronous = FULL;")?;
-    
     conn.execute_batch("PRAGMA wal_autocheckpoint = 400;")?;
+    conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
     
     let ok: String = conn.query_row("PRAGMA integrity_check(1)", [], |r| r.get(0))?;
     if ok != "ok" {

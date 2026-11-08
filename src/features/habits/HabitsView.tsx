@@ -82,63 +82,61 @@ export function HabitsView() {
     return logSet.has(`${habitId}:${date}`);
   }
 
+
+  const streakMap = useMemo(() => {
+    const map = new Map<string, number>();
+
+    for (const habit of habits) {
+      let streak = 0;
+      let cur = parseISO(today);
+
+      function isScheduledDay(dateObj: Date): boolean {
+        const dayOfWeek = dateObj.getDay();
+        if (habit.frequency === "weekdays") return dayOfWeek >= 1 && dayOfWeek <= 5;
+        if (habit.frequency === "weekly") return true;
+        if (habit.frequency === "custom" && habit.customDays) {
+          const allowed = habit.customDays.split(",").map((s) => s.trim());
+          return allowed.includes(String(dayOfWeek));
+        }
+        return true;
+      }
+
+      const todayStr = format(cur, "yyyy-MM-dd");
+      if (!logSet.has(`${habit.id}:${todayStr}`) && !isScheduledDay(cur)) {
+        cur = subDays(cur, 1);
+      } else if (!logSet.has(`${habit.id}:${todayStr}`) && isScheduledDay(cur)) {
+        const yesterday = subDays(cur, 1);
+        const yStr = format(yesterday, "yyyy-MM-dd");
+        if (logSet.has(`${habit.id}:${yStr}`)) {
+          cur = yesterday;
+        }
+      }
+
+      for (let i = 0; i < 90; i++) {
+        const d = format(cur, "yyyy-MM-dd");
+        const scheduled = isScheduledDay(cur);
+        const logged = logSet.has(`${habit.id}:${d}`);
+
+        if (scheduled) {
+          if (logged) {
+            streak++;
+          } else {
+            break;
+          }
+        } else if (logged) {
+          streak++;
+        }
+        cur = subDays(cur, 1);
+      }
+
+      map.set(habit.id, streak);
+    }
+
+    return map;
+  }, [habits, logSet, today]);
+
   function streakCount(habit: Habit): number {
-    let streak = 0;
-    let cur = parseISO(today);
-
-    
-    function isScheduledDay(dateObj: Date): boolean {
-      const dayOfWeek = dateObj.getDay(); 
-      if (habit.frequency === "weekdays") {
-        return dayOfWeek >= 1 && dayOfWeek <= 5;
-      }
-      if (habit.frequency === "weekly") {
-        return true; 
-      }
-      if (habit.frequency === "custom" && habit.customDays) {
-        const allowed = habit.customDays.split(",").map((s) => s.trim());
-        return allowed.includes(String(dayOfWeek));
-      }
-      
-      return true;
-    }
-
-    
-    const todayStr = format(cur, "yyyy-MM-dd");
-    if (!isLogged(habit.id, todayStr) && !isScheduledDay(cur)) {
-      cur = subDays(cur, 1);
-    } else if (!isLogged(habit.id, todayStr) && isScheduledDay(cur)) {
-      
-      const yesterday = subDays(cur, 1);
-      const yStr = format(yesterday, "yyyy-MM-dd");
-      if (isLogged(habit.id, yStr)) {
-        cur = yesterday;
-      }
-    }
-
-    
-    for (let i = 0; i < 365; i++) {
-      const d = format(cur, "yyyy-MM-dd");
-      const scheduled = isScheduledDay(cur);
-      const logged = isLogged(habit.id, d);
-
-      if (scheduled) {
-        if (logged) {
-          streak++;
-        } else {
-          
-          break;
-        }
-      } else {
-        
-        
-        if (logged) {
-          streak++;
-        }
-      }
-      cur = subDays(cur, 1);
-    }
-    return streak;
+    return streakMap.get(habit.id) ?? 0;
   }
 
   function toggleDay(habit: Habit, date: string) {

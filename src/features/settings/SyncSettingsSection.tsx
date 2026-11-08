@@ -13,7 +13,16 @@ export function SyncSettingsSection() {
 
   useEffect(() => {
     void loadStatus();
-  }, []);
+
+
+    const interval = setInterval(() => {
+      if (syncEnabled && !loading) {
+        void triggerManualSync(true);
+      }
+    }, 30000);
+
+    return () => clearInterval(interval);
+  }, [syncEnabled, loading]);
 
   async function loadStatus() {
     try {
@@ -24,7 +33,7 @@ export function SyncSettingsSection() {
       setUnsyncedCount(status.unsynced_count);
       setLastSyncedAt(status.last_synced_at);
 
-      // Generate a reproducible pairing token encoded with device & server details
+
       const token = btoa(JSON.stringify({ id: status.device_id, url: status.server_url ?? serverUrl }));
       setPairingCode(token);
     } catch (e) {
@@ -47,13 +56,19 @@ export function SyncSettingsSection() {
     }
   }
 
-  async function triggerManualSync() {
-    setLoading(true);
-    setSyncStatusMsg("Connecting to sync relay...");
+  async function triggerManualSync(isBackground = false) {
+    if (!isBackground) setLoading(true);
+    if (!isBackground) setSyncStatusMsg("Connecting to sync relay...");
     try {
-      // 1. Fetch local unsynced changes to push
-      const items = await api.getUnsyncedItems(100);
-      if (items.length > 0) {
+
+      let hasMore = true;
+      while (hasMore) {
+        const items = await api.getUnsyncedItems(50);
+        if (items.length === 0) {
+          hasMore = false;
+          break;
+        }
+
         const payloadChanges = items.map((i) => ({
           entity_type: i.entity_type,
           entity_id: i.entity_id,
@@ -63,21 +78,33 @@ export function SyncSettingsSection() {
         }));
 
         try {
-          // Push to sync server if reachable
-          await fetch(`${serverUrl}/sync/push`, {
+
+          const pushRes = await fetch(`${serverUrl}/sync/push`, {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ changes: payloadChanges }),
           });
-        } catch {}
 
-        // Acknowledge locally
-        const ids = items.map((i) => i.id);
-        const now = new Date().toISOString();
-        await api.markSynced(ids, now);
+          if (pushRes.ok) {
+
+            const ids = items.map((i) => i.id);
+            const now = new Date().toISOString();
+            await api.markSynced(ids, now);
+          } else {
+
+            break;
+          }
+        } catch {
+
+          break;
+        }
+
+        if (items.length < 50) {
+          hasMore = false;
+        }
       }
 
-      // 2. Pull remote changes from relay
+
       try {
         const res = await fetch(`${serverUrl}/sync/pull${lastSyncedAt ? `?since=${encodeURIComponent(lastSyncedAt)}` : ""}`);
         if (res.ok) {
@@ -142,7 +169,7 @@ export function SyncSettingsSection() {
               <button
                 type="button"
                 className="chip primary"
-                onClick={triggerManualSync}
+                onClick={() => void triggerManualSync(false)}
                 disabled={loading}
               >
                 Sync Now

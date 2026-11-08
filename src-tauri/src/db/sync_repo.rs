@@ -47,6 +47,14 @@ pub fn get_unsynced_items(conn: &Connection, limit: usize) -> AppResult<Vec<Sync
     Ok(items)
 }
 
+pub fn auto_purge_synced_log(conn: &Connection) -> AppResult<usize> {
+    let count = conn.execute(
+        "DELETE FROM sync_log WHERE synced_at IS NOT NULL AND julianday('now') - julianday(synced_at) > 30",
+        [],
+    )?;
+    Ok(count)
+}
+
 pub fn mark_synced(conn: &Connection, ids: &[i64], timestamp: &str) -> AppResult<()> {
     for id in ids {
         conn.execute(
@@ -139,6 +147,19 @@ pub fn apply_incoming_changes(conn: &mut Connection, changes: Vec<IncomingChange
     let mut applied = 0;
 
     for change in changes {
+
+        let _ = tx.execute(
+            "INSERT INTO sync_log (entity_type, entity_id, op_type, payload, client_timestamp, synced_at)
+             VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+            params![
+                change.entity_type,
+                change.entity_id,
+                change.op_type,
+                change.payload,
+                change.updated_at,
+            ],
+        );
+
         if change.entity_type == "task" {
             if let Some(payload_str) = &change.payload {
                 if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload_str) {
@@ -155,7 +176,7 @@ pub fn apply_incoming_changes(conn: &mut Connection, changes: Vec<IncomingChange
                     let recur_rule = v.get("recur_rule").and_then(|s| s.as_str());
                     let updated_at = &change.updated_at;
 
-                    // Last-Write-Wins (LWW) collision check against local updated_at
+
                     let should_apply: bool = tx.query_row(
                         "SELECT CASE 
                             WHEN NOT EXISTS(SELECT 1 FROM tasks WHERE id = ?1) THEN 1 
@@ -195,6 +216,68 @@ pub fn apply_incoming_changes(conn: &mut Connection, changes: Vec<IncomingChange
                     "UPDATE tasks SET deleted_at = ?2, updated_at = ?2 WHERE id = ?1",
                     params![change.entity_id, change.updated_at],
                 )?;
+                applied += 1;
+            }
+        } else if change.entity_type == "subtask" {
+            if let Some(payload_str) = &change.payload {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload_str) {
+                    let id = change.entity_id.clone();
+                    let task_id = v.get("task_id").and_then(|s| s.as_str()).unwrap_or("");
+                    let title = v.get("title").and_then(|s| s.as_str()).unwrap_or("");
+                    let completed_at = v.get("completed_at").and_then(|s| s.as_str());
+
+                    tx.execute(
+                        "INSERT INTO subtasks (id, task_id, title, completed_at)
+                         VALUES (?1, ?2, ?3, ?4)
+                         ON CONFLICT(id) DO UPDATE SET
+                            title = excluded.title,
+                            completed_at = excluded.completed_at",
+                        params![id, task_id, title, completed_at],
+                    )?;
+                    applied += 1;
+                }
+            } else if change.op_type == "delete" {
+                tx.execute("DELETE FROM subtasks WHERE id = ?1", params![change.entity_id])?;
+                applied += 1;
+            }
+        } else if change.entity_type == "project" {
+            if let Some(payload_str) = &change.payload {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload_str) {
+                    let id = change.entity_id.clone();
+                    let name = v.get("name").and_then(|s| s.as_str()).unwrap_or("");
+                    let color = v.get("color").and_then(|s| s.as_str()).unwrap_or("#6366f1");
+                    let deleted_at = v.get("deleted_at").and_then(|s| s.as_str());
+
+                    tx.execute(
+                        "INSERT INTO projects (id, name, color, deleted_at)
+                         VALUES (?1, ?2, ?3, ?4)
+                         ON CONFLICT(id) DO UPDATE SET
+                            name = excluded.name,
+                            color = excluded.color,
+                            deleted_at = excluded.deleted_at",
+                        params![id, name, color, deleted_at],
+                    )?;
+                    applied += 1;
+                }
+            }
+        } else if change.entity_type == "habit_log" {
+            if let Some(payload_str) = &change.payload {
+                if let Ok(v) = serde_json::from_str::<serde_json::Value>(payload_str) {
+                    let id = change.entity_id.clone();
+                    let habit_id = v.get("habit_id").and_then(|s| s.as_str()).unwrap_or("");
+                    let logged_date = v.get("logged_date").and_then(|s| s.as_str()).unwrap_or("");
+                    let created_at = v.get("created_at").and_then(|s| s.as_str()).unwrap_or(&change.updated_at);
+
+                    tx.execute(
+                        "INSERT INTO habit_logs (id, habit_id, logged_date, created_at)
+                         VALUES (?1, ?2, ?3, ?4)
+                         ON CONFLICT(habit_id, logged_date) DO NOTHING",
+                        params![id, habit_id, logged_date, created_at],
+                    )?;
+                    applied += 1;
+                }
+            } else if change.op_type == "delete" {
+                tx.execute("DELETE FROM habit_logs WHERE id = ?1", params![change.entity_id])?;
                 applied += 1;
             }
         }
