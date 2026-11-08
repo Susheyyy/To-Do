@@ -8,7 +8,6 @@ import { DisplayMenu } from "../../components/DisplayMenu";
 import { Group } from "../../components/Group";
 import { Icon } from "../../components/Icon";
 import { Mascot } from "../../components/Mascot";
-import { QuickFilterBar } from "../../components/QuickFilterBar";
 import { BatchToolbar } from "../../components/BatchToolbar";
 import { sortTasks } from "../../lib/sortTasks";
 import { todayIso, useTasks } from "../../stores/tasks.store";
@@ -72,6 +71,7 @@ export function ListView({ id }: { id: ListId }) {
   const dueNow = applyFilters(rawDueNow);
   const inbox = applyFilters(open.filter((t) => !t.dueDate && !t.projectId));
   const days = Array.from({ length: 7 }, (_, i) => dayIso(i));
+  const calendarDays = Array.from({ length: 14 }, (_, i) => dayIso(i));
   const tasksOn = (d: string) => applyFilters(open.filter((t) => taskOccursOnDate(t, d)));
   const later = applyFilters(
     open.filter((t) => !t.recurRule && t.dueDate !== null && t.dueDate > days[6])
@@ -91,7 +91,8 @@ export function ListView({ id }: { id: ListId }) {
           <DisplayMenu
             showCompletedToggle={id === "today"}
             count={totalCount}
-            showCalendar={id !== "today"}
+            showCalendar={id === "upcoming"}
+            showBoard={id !== "upcoming"}
           />
         </div>
       </div>
@@ -111,9 +112,7 @@ export function ListView({ id }: { id: ListId }) {
         )}
       </header>
 
-      {(id === "today" || id === "upcoming" || id === "inbox") && <QuickFilterBar />}
-
-      {id === "upcoming" && (
+      {id === "upcoming" && layout !== "calendar" && (
         <div className="week-strip">
           {days.map((d) => (
             <button
@@ -320,10 +319,30 @@ export function ListView({ id }: { id: ListId }) {
           />
         )}
 
-        {id !== "today" && layout === "calendar" && (
+        {id === "upcoming" && layout === "calendar" && (
           <div className="calendar-view-placeholder">
             <div className="week-strip" style={{ marginTop: 0 }}>
-              {days.map((d) => (
+              {calendarDays.slice(0, 7).map((d) => (
+                <div key={d} className="calendar-col">
+                  <div className="calendar-col-header">
+                    <span className="week-name">{format(parseISO(d), "EEE")}</span>
+                    <span className="week-num">{format(parseISO(d), "d")}</span>
+                  </div>
+                  <div className="calendar-task-list">
+                    {tasksOn(d).map((task) => (
+                      <div key={task.id} className="calendar-task-card">
+                        <span className={`priority-${task.priority}`}>
+                          <Icon name="flag" size={12} />
+                        </span>
+                        <span className="calendar-task-title">{task.title}</span>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+            <div className="week-strip" style={{ marginTop: 8 }}>
+              {calendarDays.slice(7).map((d) => (
                 <div key={d} className="calendar-col">
                   <div className="calendar-col-header">
                     <span className="week-name">{format(parseISO(d), "EEE")}</span>
@@ -345,7 +364,7 @@ export function ListView({ id }: { id: ListId }) {
           </div>
         )}
 
-        {id === "upcoming" && (
+        {id === "upcoming" && layout !== "calendar" && (
           <>
             {overdue.length > 0 && (
               <Group

@@ -59,7 +59,6 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             let mut conn = db::open(&dir).map_err(|e| e.to_string())?;
             let _ = db::tasks_repo::generate_missed_recurring(&mut conn);
-            let _ = db::tasks_repo::auto_purge_trash(&conn);
             let _ = db::sync_repo::auto_purge_synced_log(&conn);
             app.manage(AppState {
                 db: Mutex::new(conn),
@@ -221,10 +220,6 @@ pub fn run() {
             tasks::list_completed_between,
             tasks::generate_recurring,
             tasks::reschedule_overdue,
-            tasks::list_trash,
-            tasks::restore_task,
-            tasks::permanent_delete_task,
-            tasks::empty_trash,
             tasks::search_tasks_fts,
             projects::create_project,
             projects::list_projects,

@@ -135,6 +135,13 @@ export function DatePickerPopover({ value, onChange }: Props) {
                   onClick={() => selectDate(d)}
                   style={{
                     padding: "6px 0",
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    textAlign: "center",
+                    width: "100%",
+                    height: "28px",
+                    lineHeight: "28px",
                     background: isSelected ? "var(--color-accent, #6366f1)" : "transparent",
                     color: isSelected
                       ? "#ffffff"
