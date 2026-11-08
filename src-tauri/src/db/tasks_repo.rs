@@ -340,53 +340,6 @@ pub fn soft_delete(conn: &Connection, id: &str) -> AppResult<()> {
     Ok(())
 }
 
-pub fn restore_task(conn: &Connection, id: &str) -> AppResult<()> {
-    let ts = now();
-    let changed = conn.execute(
-        "UPDATE tasks SET deleted_at = NULL, updated_at = ?2 WHERE id = ?1 AND deleted_at IS NOT NULL",
-        params![id, ts],
-    )?;
-    if changed == 0 {
-        return Err(AppError::NotFound(format!("task {id}")));
-    }
-    Ok(())
-}
-
-pub fn permanent_delete(conn: &Connection, id: &str) -> AppResult<()> {
-    conn.execute("DELETE FROM task_tags WHERE task_id = ?1", params![id])?;
-    conn.execute("DELETE FROM subtasks WHERE task_id = ?1", params![id])?;
-    let changed = conn.execute("DELETE FROM tasks WHERE id = ?1", params![id])?;
-    if changed == 0 {
-        return Err(AppError::NotFound(format!("task {id}")));
-    }
-    Ok(())
-}
-
-pub fn empty_trash(conn: &Connection) -> AppResult<usize> {
-    conn.execute("DELETE FROM task_tags WHERE task_id IN (SELECT id FROM tasks WHERE deleted_at IS NOT NULL)", [])?;
-    conn.execute("DELETE FROM subtasks WHERE task_id IN (SELECT id FROM tasks WHERE deleted_at IS NOT NULL)", [])?;
-    let count = conn.execute("DELETE FROM tasks WHERE deleted_at IS NOT NULL", [])?;
-    Ok(count)
-}
-
-pub fn auto_purge_trash(conn: &Connection) -> AppResult<usize> {
-    conn.execute("DELETE FROM task_tags WHERE task_id IN (SELECT id FROM tasks WHERE deleted_at IS NOT NULL AND julianday('now') - julianday(deleted_at) > 30)", [])?;
-    conn.execute("DELETE FROM subtasks WHERE task_id IN (SELECT id FROM tasks WHERE deleted_at IS NOT NULL AND julianday('now') - julianday(deleted_at) > 30)", [])?;
-    let count = conn.execute(
-        "DELETE FROM tasks WHERE deleted_at IS NOT NULL AND julianday('now') - julianday(deleted_at) > 30",
-        [],
-    )?;
-    Ok(count)
-}
-
-pub fn list_trash(conn: &Connection) -> AppResult<Vec<Task>> {
-    collect(
-        conn,
-        &format!("SELECT {SELECT_COLS} FROM tasks WHERE deleted_at IS NOT NULL ORDER BY updated_at DESC"),
-        &[],
-    )
-}
-
 pub fn add_subtask(conn: &Connection, task_id: &str, title: &str) -> AppResult<Task> {
     if title.trim().is_empty() {
         return Err(AppError::Invalid("subtask title is required".into()));

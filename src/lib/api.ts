@@ -152,10 +152,6 @@ export const api = {
   generateRecurring: () => safeInvoke<number>("generate_recurring"),
   rescheduleOverdue: (targetDate: string) =>
     safeInvoke<number>("reschedule_overdue", { targetDate }),
-  listTrash: () => safeInvoke<Task[]>("list_trash"),
-  restoreTask: (id: string) => safeInvoke<void>("restore_task", { id }),
-  permanentDeleteTask: (id: string) => safeInvoke<void>("permanent_delete_task", { id }),
-  emptyTrash: () => safeInvoke<number>("empty_trash"),
   searchTasksFts: (query: string) => safeInvoke<Task[]>("search_tasks_fts", { query }),
   getSyncStatus: () =>
     safeInvoke<{

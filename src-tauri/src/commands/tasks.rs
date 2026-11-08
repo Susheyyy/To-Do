@@ -135,36 +135,6 @@ pub fn list_completed_between(state: State<'_, AppState>, start: String, end: St
 }
 
 #[tauri::command]
-pub fn list_trash(state: State<'_, AppState>) -> AppResult<Vec<Task>> {
-    let conn = state.conn()?;
-    tasks_repo::list_trash(&conn)
-}
-
-#[tauri::command]
-pub fn restore_task(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    let conn = state.conn()?;
-    tasks_repo::restore_task(&conn, &id)?;
-    let _ = app.emit("tasks-changed", ());
-    Ok(())
-}
-
-#[tauri::command]
-pub fn permanent_delete_task(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
-    let conn = state.conn()?;
-    tasks_repo::permanent_delete(&conn, &id)?;
-    let _ = app.emit("tasks-changed", ());
-    Ok(())
-}
-
-#[tauri::command]
-pub fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> AppResult<usize> {
-    let conn = state.conn()?;
-    let count = tasks_repo::empty_trash(&conn)?;
-    let _ = app.emit("tasks-changed", ());
-    Ok(count)
-}
-
-#[tauri::command]
 pub fn search_tasks_fts(state: State<'_, AppState>, query: String) -> AppResult<Vec<Task>> {
     let conn = state.conn()?;
     tasks_repo::search_fts(&conn, &query)

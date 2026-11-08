@@ -1,5 +1,4 @@
 import { FormEvent, useState } from "react";
-import { addDays, format } from "date-fns";
 
 import { Icon } from "../../components/Icon";
 import { tagColor } from "../../lib/projectColors";
@@ -41,7 +40,6 @@ export function TaskRow({
   const toggleTask = useTasks((s) => s.toggleTask);
   const updateTask = useTasks((s) => s.updateTask);
   const deleteTask = useTasks((s) => s.deleteTask);
-  const createTask = useTasks((s) => s.createTask);
   const addSubtask = useTasks((s) => s.addSubtask);
   const toggleSubtask = useTasks((s) => s.toggleSubtask);
   const projects = useTasks((s) => s.projects);
@@ -49,7 +47,6 @@ export function TaskRow({
 
   const [leaving, setLeaving] = useState(false);
   const [expanded, setExpanded] = useState(false);
-  const [snoozeOpen, setSnoozeOpen] = useState(false);
   const [subtaskText, setSubtaskText] = useState("");
   const done = task.completedAt !== null;
   const project = task.projectId ? projects.find((p) => p.id === task.projectId) : null;
@@ -65,26 +62,6 @@ export function TaskRow({
     }
     setLeaving(true);
     window.setTimeout(() => void toggleTask(task), 260);
-  }
-
-  function duplicate() {
-    void createTask({
-      title: `${task.title} (Copy)`,
-      notes: task.notes,
-      priority: task.priority,
-      dueDate: task.dueDate,
-      dueTime: task.dueTime,
-      projectId: task.projectId,
-      sectionId: task.sectionId,
-      tags: [...task.tags],
-      recurRule: task.recurRule,
-    });
-  }
-
-  function snoozeDays(days: number) {
-    const nextDate = format(addDays(new Date(), days), "yyyy-MM-dd");
-    void updateTask(task.id, toInput(task, { dueDate: nextDate }));
-    setSnoozeOpen(false);
   }
 
   function submitSubtask(e: FormEvent) {
@@ -152,83 +129,6 @@ export function TaskRow({
         </div>
 
         {}
-        <div style={{ position: "relative" }}>
-          <button
-            className="icon-btn"
-            onClick={() => setSnoozeOpen(!snoozeOpen)}
-            title="Reschedule / Snooze"
-            aria-label="Reschedule / Snooze"
-          >
-            <Icon name="sun" size={15} />
-          </button>
-          {snoozeOpen && (
-            <div
-              className="quick-snooze-popover"
-              style={{
-                position: "absolute",
-                top: "100%",
-                right: 0,
-                zIndex: 40,
-                background: "var(--color-bg-secondary, #1e1e24)",
-                border: "1px solid var(--color-border, #2d2d38)",
-                borderRadius: "8px",
-                padding: "6px",
-                display: "flex",
-                flexDirection: "column",
-                gap: "4px",
-                boxShadow: "0 8px 16px rgba(0,0,0,0.3)",
-                minWidth: "120px",
-              }}
-            >
-              <button
-                type="button"
-                className="chip"
-                style={{ textAlign: "left", justifyContent: "flex-start", padding: "6px 8px" }}
-                onClick={() => snoozeDays(1)}
-              >
-                Tomorrow
-              </button>
-              <button
-                type="button"
-                className="chip"
-                style={{ textAlign: "left", justifyContent: "flex-start", padding: "6px 8px" }}
-                onClick={() => snoozeDays(3)}
-              >
-                In 3 Days
-              </button>
-              <button
-                type="button"
-                className="chip"
-                style={{ textAlign: "left", justifyContent: "flex-start", padding: "6px 8px" }}
-                onClick={() => snoozeDays(7)}
-              >
-                Next Week
-              </button>
-              <button
-                type="button"
-                className="chip"
-                style={{ textAlign: "left", justifyContent: "flex-start", padding: "6px 8px", color: "var(--color-text-secondary, #8e8e93)" }}
-                onClick={() => {
-                  void updateTask(task.id, toInput(task, { dueDate: null, dueTime: null }));
-                  setSnoozeOpen(false);
-                }}
-              >
-                Clear Due Date
-              </button>
-            </div>
-          )}
-        </div>
-
-        {}
-        <button
-          className="icon-btn"
-          onClick={duplicate}
-          title="Duplicate Task"
-          aria-label="Duplicate Task"
-        >
-          <Icon name="clipboard" size={15} />
-        </button>
-
         <button
           className="icon-btn"
           onClick={() => void updateTask(task.id, toInput(task, { priority: NEXT_PRIORITY[task.priority] }))}

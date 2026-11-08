@@ -9,10 +9,12 @@ export function DisplayMenu({
   showCompletedToggle = true,
   count = 2,
   showCalendar = true,
+  showBoard = true,
 }: {
   showCompletedToggle?: boolean;
   count?: number;
   showCalendar?: boolean;
+  showBoard?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const anchorRef = useRef<HTMLDivElement>(null);
@@ -84,13 +86,15 @@ export function DisplayMenu({
               <Icon name="list" size={16} />
               <span>List</span>
             </button>
-            <button
-              className={`layout-seg-btn ${layout === "board" ? "active" : ""}`}
-              onClick={() => setLayout("board")}
-            >
-              <Icon name="board" size={16} />
-              <span>Board</span>
-            </button>
+            {showBoard && (
+              <button
+                className={`layout-seg-btn ${layout === "board" ? "active" : ""}`}
+                onClick={() => setLayout("board")}
+              >
+                <Icon name="board" size={16} />
+                <span>Board</span>
+              </button>
+            )}
             {showCalendar && (
               <button
                 className={`layout-seg-btn ${layout === "calendar" ? "active" : ""}`}

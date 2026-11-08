@@ -273,9 +273,9 @@ export function SettingsView() {
             style={{
               padding: "6px 12px",
               borderRadius: "8px",
-              background: "var(--color-bg-secondary, #1a1a20)",
-              border: "1px solid var(--color-border, #2d2d38)",
-              color: "var(--color-text-primary, #ffffff)",
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              color: "var(--color-text)",
               fontSize: "13px",
             }}
           >
@@ -303,9 +303,9 @@ export function SettingsView() {
                 flex: 1,
                 padding: "8px 12px",
                 borderRadius: 8,
-                background: "var(--color-bg-secondary, #1a1a20)",
-                border: "1px solid var(--color-border, #2d2d38)",
-                color: "var(--color-text-primary, #ffffff)",
+                background: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-text)",
                 fontSize: 13,
               }}
             />
