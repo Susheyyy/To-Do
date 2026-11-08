@@ -6,6 +6,7 @@ import { parseTask } from "../lib/nlp/parseTask";
 import { formatTime } from "../lib/time";
 import { useSettings } from "../stores/settings.store";
 import { useTasks } from "../stores/tasks.store";
+import { useHabits } from "../stores/habits.store";
 
 interface Props {
   defaultDue: string | null;
@@ -35,6 +36,9 @@ export function QuickAdd({
   const clock = useSettings((s) => s.clock);
   const createTask = useTasks((s) => s.createTask);
   const ensureProject = useTasks((s) => s.ensureProject);
+  const habits = useHabits((s) => s.habits);
+  const logHabit = useHabits((s) => s.logHabit);
+  const loadHabits = useHabits((s) => s.load);
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -73,6 +77,14 @@ export function QuickAdd({
 
   useEffect(() => {
     if (autoFocus) inputRef.current?.focus();
+
+    return () => {
+      if (recognizerRef.current) {
+        try {
+          recognizerRef.current.abort();
+        } catch {}
+      }
+    };
   }, [autoFocus]);
 
   const due = parsed.dueDate ?? defaultDue;
@@ -124,6 +136,26 @@ export function QuickAdd({
   async function submit(e: FormEvent) {
     e.preventDefault();
     if (!parsed.title) return;
+
+
+    const lower = text.trim().toLowerCase();
+    const habitMatch = lower.match(/^(?:done|log|check|habit)\s+(.+)$/i);
+    if (habitMatch) {
+      if (habits.length === 0) await loadHabits();
+      const currentHabits = useHabits.getState().habits;
+      const query = habitMatch[1].trim();
+      const matchedHabit = currentHabits.find(
+        (h) => h.name.toLowerCase().includes(query) || query.includes(h.name.toLowerCase())
+      );
+      if (matchedHabit) {
+        const todayStr = format(new Date(), "yyyy-MM-dd");
+        await logHabit(matchedHabit.id, todayStr);
+        setText("");
+        onDone?.();
+        return;
+      }
+    }
+
     const projectId = parsed.projectName ? await ensureProject(parsed.projectName) : defaultProjectId;
     await createTask({
       title: parsed.title,

@@ -21,7 +21,7 @@ pub struct BackupEntry {
     pub created_at: String,
 }
 
-/// List available backups, newest first.
+
 #[tauri::command]
 pub fn list_backups(app: AppHandle) -> AppResult<Vec<BackupEntry>> {
     let dir = app.path().app_data_dir()?;
@@ -38,7 +38,7 @@ pub fn list_backups(app: AppHandle) -> AppResult<Vec<BackupEntry>> {
             }
             let meta = fs::metadata(&path).ok()?;
             let filename = path.file_name()?.to_string_lossy().into_owned();
-            // Parse timestamp from filename: todo_backup_YYYYMMDD_HHmmss.db
+            
             let created_at = filename
                 .strip_prefix("todo_backup_")
                 .and_then(|s| s.strip_suffix(".db"))
@@ -52,16 +52,16 @@ pub fn list_backups(app: AppHandle) -> AppResult<Vec<BackupEntry>> {
             })
         })
         .collect();
-    // Newest first
+    
     entries.sort_by(|a, b| b.created_at.cmp(&a.created_at));
     Ok(entries)
 }
 
-/// Restore a specific backup by its filename (not full path, for safety).
-/// The current database is backed up first before the restore overwrites it.
+
+
 #[tauri::command]
 pub fn restore_backup(app: AppHandle, state: State<AppState>, filename: String) -> AppResult<()> {
-    // Validate: filename must be a plain name with no path components.
+    
     if filename.contains('/') || filename.contains('\\') || filename.contains("..") {
         return Err(AppError::Invalid("invalid backup filename".into()));
     }
@@ -75,7 +75,7 @@ pub fn restore_backup(app: AppHandle, state: State<AppState>, filename: String) 
         return Err(AppError::NotFound(format!("backup {filename} not found")));
     }
 
-    // Safety snapshot of current DB before overwriting.
+    
     let ts = Utc::now().format("%Y%m%d_%H%M%S");
     let safety = dir.join("backups").join(format!("todo_before_restore_{ts}.db"));
     let db_path = dir.join("todo.db");
@@ -83,12 +83,14 @@ pub fn restore_backup(app: AppHandle, state: State<AppState>, filename: String) 
         let _ = fs::copy(&db_path, &safety);
     }
 
-    // We need exclusive access — lock the connection and copy.
-    let conn = state.conn()?;
-    // Checkpoint WAL into main file so the copy is complete.
-    let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
-    drop(conn);
 
-    fs::copy(&backup_path, &db_path)?;
+    let mut conn = state.conn()?;
+    let src_conn = rusqlite::Connection::open(&backup_path)?;
+    {
+        let backup = rusqlite::backup::Backup::new(&src_conn, &mut *conn)?;
+        backup.run_to_completion(100, std::time::Duration::from_millis(250), None)?;
+    }
+
+    let _ = conn.execute_batch("PRAGMA wal_checkpoint(FULL);");
     Ok(())
 }

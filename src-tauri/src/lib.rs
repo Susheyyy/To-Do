@@ -16,7 +16,7 @@ use tauri::{
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-use commands::{backup, export, habits, history, projects, tasks, tray};
+use commands::{backup, export, habits, history, projects, sync, tasks, tray};
 use services::history::History;
 use state::AppState;
 
@@ -24,6 +24,19 @@ use state::AppState;
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_single_instance::init(|app, args, _cwd| {
+
+            let deep_url = args.iter().find(|a| a.starts_with("todo://"));
+            if let Some(url_str) = deep_url {
+
+                if url_str.contains("create") || url_str.contains("add") {
+                    if let Some(win) = app.get_webview_window("quick-capture") {
+                        let _ = win.show();
+                        let _ = win.set_focus();
+                        return;
+                    }
+                }
+            }
+
             if args.iter().any(|a| a == "--quick" || a == "-q") {
                 if let Some(win) = app.get_webview_window("quick-capture") {
                     let _ = win.show();
@@ -46,14 +59,17 @@ pub fn run() {
             let dir = app.path().app_data_dir()?;
             let mut conn = db::open(&dir).map_err(|e| e.to_string())?;
             let _ = db::tasks_repo::generate_missed_recurring(&mut conn);
+            let _ = db::tasks_repo::auto_purge_trash(&conn);
+            let _ = db::sync_repo::auto_purge_synced_log(&conn);
             app.manage(AppState {
                 db: Mutex::new(conn),
                 history: Mutex::new(History::default()),
             });
 
             let show_item = MenuItem::with_id(app, "show", "Open To-Do", true, None::<&str>)?;
+            let quick_add_item = MenuItem::with_id(app, "quick_add", "Quick Add Task...", true, None::<&str>)?;
             let quit_item = MenuItem::with_id(app, "quit", "Quit", true, None::<&str>)?;
-            let menu = Menu::with_items(app, &[&show_item, &quit_item])?;
+            let menu = Menu::with_items(app, &[&show_item, &quick_add_item, &quit_item])?;
 
             TrayIconBuilder::with_id("main-tray")
                 .icon(app.default_window_icon().unwrap().clone())
@@ -67,7 +83,27 @@ pub fn run() {
                             button_state: MouseButtonState::Up,
                             ..
                         } => {
-                            if let Some(win) = app.get_webview_window("quick-capture") {
+                            let action = if let Some(state) = app.try_state::<AppState>() {
+                                if let Ok(c) = state.conn() {
+                                    c.query_row(
+                                        "SELECT value FROM sync_metadata WHERE key = 'tray_click_action'",
+                                        [],
+                                        |r| r.get::<_, String>(0),
+                                    ).unwrap_or_else(|_| "quick-capture".to_string())
+                                } else {
+                                    "quick-capture".to_string()
+                                }
+                            } else {
+                                "quick-capture".to_string()
+                            };
+
+                            let win_name = match action.as_str() {
+                                "floating-bar" => "floating-bar",
+                                "main" => "main",
+                                _ => "quick-capture",
+                            };
+
+                            if let Some(win) = app.get_webview_window(win_name) {
                                 if win.is_visible().unwrap_or(false) {
                                     let _ = win.hide();
                                 } else {
@@ -95,7 +131,19 @@ pub fn run() {
                             let _ = win.set_focus();
                         }
                     }
+                    "quick_add" => {
+                        if let Some(win) = app.get_webview_window("floating-bar") {
+                            let _ = win.show();
+                            let _ = win.set_focus();
+                        }
+                    }
                     "quit" => {
+
+                        if let Some(state) = app.try_state::<AppState>() {
+                            if let Ok(conn) = state.conn() {
+                                let _ = conn.execute_batch("PRAGMA wal_checkpoint(TRUNCATE);");
+                            }
+                        }
                         app.exit(0);
                     }
                     _ => {}
@@ -104,19 +152,26 @@ pub fn run() {
 
             let shortcut =
                 Shortcut::new(Some(Modifiers::CONTROL | Modifiers::ALT), Code::Space);
-            app.global_shortcut()
-                .on_shortcut(shortcut, |app, _shortcut, event| {
-                    if event.state() == ShortcutState::Pressed {
-                        if let Some(win) = app.get_webview_window("floating-bar") {
-                            if win.is_visible().unwrap_or(false) {
-                                let _ = win.hide();
-                            } else {
-                                let _ = win.show();
-                                let _ = win.set_focus();
-                            }
-                        }
+            if let Err(err) = app.global_shortcut().on_shortcut(shortcut, |app, _shortcut, event| {
+                if event.state() == ShortcutState::Pressed
+                    && let Some(win) = app.get_webview_window("floating-bar")
+                {
+                    if win.is_visible().unwrap_or(false) {
+                        let _ = win.hide();
+                    } else {
+                        let _ = win.show();
+                        let _ = win.set_always_on_top(true);
+                        let _ = win.set_focus();
+                        let win_c = win.clone();
+                        std::thread::spawn(move || {
+                            std::thread::sleep(Duration::from_millis(80));
+                            let _ = win_c.set_focus();
+                        });
                     }
-                })?;
+                }
+            }) {
+                eprintln!("[shortcut] Failed to register global shortcut (Ctrl+Alt+Space): {err}. Wayland or OS hotkey manager might restrict global registration.");
+            }
 
             let args: Vec<String> = std::env::args().collect();
             let autolaunch = app.autolaunch();
@@ -129,20 +184,15 @@ pub fn run() {
                     let _ = win.show();
                     let _ = win.set_focus();
                 }
-            } else if !args.contains(&"--minimized".to_string()) {
-                if let Some(win) = app.get_webview_window("main") {
-                    let _ = win.show();
-                }
+            } else if !args.contains(&"--minimized".to_string())
+                && let Some(win) = app.get_webview_window("main")
+            {
+                let _ = win.show();
             }
 
-            // ── Auto-backup background thread ────────────────────────────────
-            // Runs every 30 minutes while the app is open. Opens its own fresh
-            // SQLite connection (not the shared Mutex one) so it never blocks
-            // the UI thread. Keeps up to 7 rolling backups.
             {
                 let app_data_dir = app.path().app_data_dir()?;
                 std::thread::spawn(move || {
-                    // 5-minute initial delay so startup I/O settles first.
                     std::thread::sleep(Duration::from_secs(5 * 60));
                     loop {
                         match db::create_auto_backup(&app_data_dir) {
@@ -175,6 +225,7 @@ pub fn run() {
             tasks::restore_task,
             tasks::permanent_delete_task,
             tasks::empty_trash,
+            tasks::search_tasks_fts,
             projects::create_project,
             projects::list_projects,
             projects::delete_project,
@@ -187,6 +238,7 @@ pub fn run() {
             tray::update_tray_badge,
             tray::hide_window,
             tray::start_dragging,
+            tray::set_tray_click_action,
             habits::create_habit,
             habits::list_habits,
             habits::update_habit,
@@ -199,13 +251,19 @@ pub fn run() {
             backup::restore_backup,
             export::export_json,
             export::export_csv,
+            export::export_ical,
+            sync::get_sync_status,
+            sync::set_sync_config,
+            sync::get_unsynced_items,
+            sync::mark_synced,
+            sync::apply_sync_changes,
         ])
         .on_window_event(|window, event| {
-            if let WindowEvent::CloseRequested { api, .. } = event {
-                if window.label() == "main" {
-                    let _ = window.hide();
-                    api.prevent_close();
-                }
+            if let WindowEvent::CloseRequested { api, .. } = event
+                && window.label() == "main"
+            {
+                let _ = window.hide();
+                api.prevent_close();
             }
         })
         .run(tauri::generate_context!())

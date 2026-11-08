@@ -4,6 +4,13 @@ import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 import { ThemePicker } from "../../components/ThemePicker";
 import { api } from "../../lib/api";
 import { useSettings } from "../../stores/settings.store";
+import { SyncSettingsSection } from "./SyncSettingsSection";
+import {
+  disconnectGCal,
+  getGCalConfig,
+  initGoogleAuth,
+  saveGCalClientId,
+} from "../../lib/googleCalendar";
 
 export function SettingsView() {
   const clock = useSettings((s) => s.clock);
@@ -23,8 +30,13 @@ export function SettingsView() {
   const morningBriefingTime = useSettings((s) => s.morningBriefingTime);
   const setMorningBriefingTime = useSettings((s) => s.setMorningBriefingTime);
 
+  const trayClickAction = useSettings((s) => s.trayClickAction);
+  const setTrayClickAction = useSettings((s) => s.setTrayClickAction);
   const [autostart, setAutostart] = useState(false);
   const [backupMsg, setBackupMsg] = useState("");
+  const [gcalConfig, setGcalConfig] = useState(getGCalConfig());
+  const [gcalClientIdInput, setGcalClientIdInput] = useState(gcalConfig.clientId);
+  const [gcalLoading, setGcalLoading] = useState(false);
 
   function downloadFile(content: string, filename: string, type: string) {
     const blob = new Blob([content], { type });
@@ -34,6 +46,32 @@ export function SettingsView() {
     a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
+  }
+
+  async function handleConnectGCal() {
+    if (!gcalClientIdInput.trim()) {
+      setBackupMsg("Please provide your Google OAuth Client ID.");
+      return;
+    }
+    try {
+      setGcalLoading(true);
+      saveGCalClientId(gcalClientIdInput);
+      await initGoogleAuth(gcalClientIdInput);
+      setGcalConfig(getGCalConfig());
+      setBackupMsg("Google Calendar connected successfully!");
+      setTimeout(() => setBackupMsg(""), 3500);
+    } catch (e: any) {
+      setBackupMsg(`Google Calendar authentication failed: ${e.message || e}`);
+    } finally {
+      setGcalLoading(false);
+    }
+  }
+
+  function handleDisconnectGCal() {
+    disconnectGCal();
+    setGcalConfig(getGCalConfig());
+    setBackupMsg("Google Calendar disconnected.");
+    setTimeout(() => setBackupMsg(""), 3500);
   }
 
   async function handleExportJson() {
@@ -52,6 +90,17 @@ export function SettingsView() {
       const data = await api.exportCsv();
       downloadFile(data, `todo_tasks_${new Date().toISOString().slice(0, 10)}.csv`, "text/csv");
       setBackupMsg("CSV exported successfully!");
+      setTimeout(() => setBackupMsg(""), 3500);
+    } catch (e) {
+      setBackupMsg(`Export failed: ${e}`);
+    }
+  }
+
+  async function handleExportIcal() {
+    try {
+      const data = await api.exportIcal();
+      downloadFile(data, `todo_calendar_${new Date().toISOString().slice(0, 10)}.ics`, "text/calendar");
+      setBackupMsg("iCalendar (.ics) exported successfully!");
       setTimeout(() => setBackupMsg(""), 3500);
     } catch (e) {
       setBackupMsg(`Export failed: ${e}`);
@@ -194,7 +243,12 @@ export function SettingsView() {
       </section>
 
       <section className="card settings-group">
-        <h2 className="group-title">System</h2>
+        <h2 className="group-title">Cross-Device Sync</h2>
+        <SyncSettingsSection />
+      </section>
+
+      <section className="card settings-group">
+        <h2 className="group-title">System & Tray</h2>
         <div className="settings-row">
           <span className="settings-label">Start on login</span>
           <button
@@ -205,6 +259,80 @@ export function SettingsView() {
           >
             <span className="toggle-thumb" />
           </button>
+        </div>
+
+        <div className="settings-row">
+          <span className="settings-label">System Tray Left-Click Action</span>
+          <select
+            value={trayClickAction}
+            onChange={(e) => {
+              const val = e.target.value as "quick-capture" | "floating-bar" | "main";
+              setTrayClickAction(val);
+              void api.setTrayClickAction(val);
+            }}
+            style={{
+              padding: "6px 12px",
+              borderRadius: "8px",
+              background: "var(--color-bg-secondary, #1a1a20)",
+              border: "1px solid var(--color-border, #2d2d38)",
+              color: "var(--color-text-primary, #ffffff)",
+              fontSize: "13px",
+            }}
+          >
+            <option value="quick-capture">Quick Capture Popup (Default)</option>
+            <option value="floating-bar">Quick Add Floating Bar</option>
+            <option value="main">Toggle Main App Window</option>
+          </select>
+        </div>
+      </section>
+
+      <section className="card settings-group">
+        <h2 className="group-title">Google Calendar Real-Time Sync</h2>
+        <div className="settings-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 10 }}>
+          <span className="settings-label">
+            Connect your Google Calendar directly. Tasks created with a due date will automatically sync as events.
+          </span>
+          <div style={{ display: "flex", gap: 8, alignItems: "center", width: "100%", maxWidth: 500 }}>
+            <input
+              type="text"
+              placeholder="Google OAuth Client ID (.apps.googleusercontent.com)"
+              value={gcalClientIdInput}
+              disabled={gcalConfig.isConnected}
+              onChange={(e) => setGcalClientIdInput(e.target.value)}
+              style={{
+                flex: 1,
+                padding: "8px 12px",
+                borderRadius: 8,
+                background: "var(--color-bg-secondary, #1a1a20)",
+                border: "1px solid var(--color-border, #2d2d38)",
+                color: "var(--color-text-primary, #ffffff)",
+                fontSize: 13,
+              }}
+            />
+            {gcalConfig.isConnected ? (
+              <button className="chip" onClick={handleDisconnectGCal}>
+                Disconnect
+              </button>
+            ) : (
+              <button
+                className="chip primary"
+                disabled={gcalLoading}
+                onClick={handleConnectGCal}
+              >
+                {gcalLoading ? "Signing in..." : "Connect Google Calendar"}
+              </button>
+            )}
+          </div>
+          {!gcalConfig.isConnected && (
+            <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary, #8f8fa0)" }}>
+              Need a Client ID? See the step-by-step instructions in the project <code>README.md</code> or the Google Cloud Console.
+            </p>
+          )}
+          {gcalConfig.isConnected && (
+            <p style={{ margin: "4px 0 0", fontSize: 12, color: "#10b981" }}>
+              ✓ Connected. Syncing tasks to dedicated "Todo Desktop" Google calendar.
+            </p>
+          )}
         </div>
       </section>
 
@@ -218,6 +346,9 @@ export function SettingsView() {
             </button>
             <button className="chip" onClick={handleExportCsv}>
               Export CSV
+            </button>
+            <button className="chip" onClick={handleExportIcal}>
+              Export iCalendar (.ics)
             </button>
             <button className="chip primary" onClick={handleBackupDatabase}>
               Backup SQLite Database

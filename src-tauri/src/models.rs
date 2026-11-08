@@ -30,6 +30,7 @@ pub struct Task {
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct TaskInput {
+    pub id: Option<String>,
     pub title: String,
     pub notes: Option<String>,
     pub priority: String,

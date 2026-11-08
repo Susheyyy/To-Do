@@ -1,6 +1,7 @@
 pub mod habits_repo;
 pub mod projects_repo;
 pub mod recur;
+pub mod sync_repo;
 pub mod tasks_repo;
 
 use std::path::{Path, PathBuf};
@@ -14,9 +15,11 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("002_priority_none", include_str!("migrations/002_priority_none.sql")),
     ("003_recurring_habits", include_str!("migrations/003_recurring_habits.sql")),
     ("004_perf_indexes", include_str!("migrations/004_perf_indexes.sql")),
+    ("005_fts", include_str!("migrations/005_fts.sql")),
+    ("006_sync_engine", include_str!("migrations/006_sync_engine.sql")),
 ];
 
-/// Number of automatic backup files to keep.
+
 pub const BACKUP_KEEP: usize = 7;
 
 pub fn open(dir: &Path) -> AppResult<Connection> {
@@ -26,13 +29,13 @@ pub fn open(dir: &Path) -> AppResult<Connection> {
     Ok(conn)
 }
 
-/// Open the database, running an integrity check and falling back to the most
-/// recent backup when the primary file is corrupt.
+
+
 fn open_with_recovery(dir: &Path, db_path: &Path) -> AppResult<Connection> {
     match try_open(db_path) {
         Ok(conn) => Ok(conn),
         Err(first_err) => {
-            // Primary DB is corrupt or unreadable — try backups newest-first.
+            
             eprintln!("[db] primary open failed ({first_err}), attempting backup recovery…");
             let backups_dir = dir.join("backups");
             if let Ok(entries) = std::fs::read_dir(&backups_dir) {
@@ -41,16 +44,16 @@ fn open_with_recovery(dir: &Path, db_path: &Path) -> AppResult<Connection> {
                     .map(|e| e.path())
                     .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("db"))
                     .collect();
-                candidates.sort_by(|a, b| b.cmp(a)); // lexicographic desc = newest first
+                candidates.sort_by(|a, b| b.cmp(a)); 
                 for candidate in candidates {
                     eprintln!("[db] trying backup {:?}", candidate);
-                    if let Ok(conn) = try_open(&candidate) {
-                        // Copy backup over primary so next open is normal.
+                    if try_open(&candidate).is_ok() {
                         if let Err(e) = std::fs::copy(&candidate, db_path) {
-                            eprintln!("[db] could not restore backup file: {e}");
+                            eprintln!("[db] could not restore backup file to primary path: {e}");
+                        } else if let Ok(restored_conn) = try_open(db_path) {
+                            eprintln!("[db] successfully restored primary db from backup {:?}", candidate);
+                            return Ok(restored_conn);
                         }
-                        eprintln!("[db] recovered from backup {:?}", candidate);
-                        return Ok(conn);
                     }
                 }
             }
@@ -61,14 +64,12 @@ fn open_with_recovery(dir: &Path, db_path: &Path) -> AppResult<Connection> {
 
 fn try_open(path: &Path) -> AppResult<Connection> {
     let conn = Connection::open(path)?;
-    // WAL mode: writes go to the WAL file and are synced before commit returns.
+    
     conn.execute_batch("PRAGMA journal_mode = WAL;")?;
-    // FULL synchronous ensures the WAL is flushed to physical storage on every
-    // commit, so a power loss cannot corrupt a completed transaction.
     conn.execute_batch("PRAGMA synchronous = FULL;")?;
-    // Checkpoint automatically when WAL exceeds ~400 pages (1.6 MB).
     conn.execute_batch("PRAGMA wal_autocheckpoint = 400;")?;
-    // Verify the file isn't corrupt before we trust it.
+    conn.execute_batch("PRAGMA busy_timeout = 5000;")?;
+    
     let ok: String = conn.query_row("PRAGMA integrity_check(1)", [], |r| r.get(0))?;
     if ok != "ok" {
         return Err(AppError::Db(rusqlite::Error::SqliteFailure(
@@ -81,8 +82,8 @@ fn try_open(path: &Path) -> AppResult<Connection> {
     Ok(conn)
 }
 
-/// Create a timestamped backup using SQLite's VACUUM INTO, keeping at most
-/// `BACKUP_KEEP` files in the backups directory.
+
+
 pub fn create_auto_backup(dir: &Path) -> AppResult<PathBuf> {
     let db_path = dir.join("todo.db");
     if !db_path.exists() {
@@ -91,7 +92,7 @@ pub fn create_auto_backup(dir: &Path) -> AppResult<PathBuf> {
     let backups_dir = dir.join("backups");
     std::fs::create_dir_all(&backups_dir)?;
 
-    // Open a fresh read connection (never the shared Mutex one) just to VACUUM INTO.
+    
     let src = Connection::open(&db_path)?;
     src.execute_batch("PRAGMA journal_mode = WAL;")?;
 
@@ -103,13 +104,13 @@ pub fn create_auto_backup(dir: &Path) -> AppResult<PathBuf> {
         [],
     )?;
 
-    // Rotate: keep only the newest BACKUP_KEEP files.
+    
     prune_backups(&backups_dir);
 
     Ok(target)
 }
 
-/// Delete the oldest backups beyond the BACKUP_KEEP limit.
+
 fn prune_backups(dir: &Path) {
     let Ok(entries) = std::fs::read_dir(dir) else {
         return;
@@ -119,7 +120,7 @@ fn prune_backups(dir: &Path) {
         .map(|e| e.path())
         .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("db"))
         .collect();
-    files.sort(); // lexicographic asc = oldest first
+    files.sort(); 
     while files.len() > BACKUP_KEEP {
         let oldest = files.remove(0);
         let _ = std::fs::remove_file(oldest);

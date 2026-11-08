@@ -14,7 +14,7 @@ pub fn create_task(app: AppHandle, state: State<'_, AppState>, input: TaskInput)
         "Create task",
         vec![Change::Task {
             id: task.id.clone(),
-            before: None,
+            before: Box::new(None),
         }],
     );
     let _ = app.emit("tasks-changed", ());
@@ -162,4 +162,10 @@ pub fn empty_trash(app: AppHandle, state: State<'_, AppState>) -> AppResult<usiz
     let count = tasks_repo::empty_trash(&conn)?;
     let _ = app.emit("tasks-changed", ());
     Ok(count)
+}
+
+#[tauri::command]
+pub fn search_tasks_fts(state: State<'_, AppState>, query: String) -> AppResult<Vec<Task>> {
+    let conn = state.conn()?;
+    tasks_repo::search_fts(&conn, &query)
 }

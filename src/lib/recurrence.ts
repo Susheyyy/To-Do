@@ -11,24 +11,20 @@ const WEEKDAY_INDEX: Record<string, number> = {
   "every-sat": 6,
 };
 
-/**
- * Checks if a task occurs on a specific target date (YYYY-MM-DD).
- * For regular tasks, it checks `task.dueDate === targetDateStr`.
- * For recurring tasks, it checks if the target date is on/after task.dueDate and matches the recurrence schedule.
- */
+
 export function taskOccursOnDate(task: Task, targetDateStr: string): boolean {
   if (!task.dueDate) return false;
   if (!task.recurRule) {
     return task.dueDate === targetDateStr;
   }
 
-  // If recurring task's initial due date is in the future relative to target, it hasn't started yet
+  
   if (task.dueDate > targetDateStr) return false;
   if (task.dueDate === targetDateStr) return true;
 
   const target = parseISO(targetDateStr);
   const start = parseISO(task.dueDate);
-  const dayOfWeek = target.getDay(); // 0 = Sun, 1 = Mon ... 6 = Sat
+  const dayOfWeek = target.getDay(); 
 
   switch (task.recurRule) {
     case "daily":

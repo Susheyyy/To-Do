@@ -22,37 +22,54 @@ export function QuickCaptureWindow() {
     void load();
   }, [load]);
 
-  // When popup gains focus or becomes visible, reload tasks and check recurring to ensure it is in sync
+  
   useEffect(() => {
     let cleanup: (() => void) | undefined;
+    let blurTimeout: any = null;
+
     getCurrentWindow()
       .onFocusChanged(({ payload: focused }) => {
         if (focused) {
+          if (blurTimeout) clearTimeout(blurTimeout);
           void load();
         } else if (!isDraggingRef.current) {
-          void closeWindow();
+
+          blurTimeout = setTimeout(() => {
+            if (!isDraggingRef.current) {
+              void closeWindow();
+            }
+          }, 120);
         }
       })
       .then((unlisten) => {
         cleanup = unlisten;
       });
+
     return () => {
       cleanup?.();
+      if (blurTimeout) clearTimeout(blurTimeout);
     };
   }, [load]);
 
-  // Global blur event listener on window as an extra safeguard when user clicks outside
   useEffect(() => {
+    let blurTimeout: any = null;
     function handleBlur() {
       if (!isDraggingRef.current) {
-        void closeWindow();
+        blurTimeout = setTimeout(() => {
+          if (!isDraggingRef.current) {
+            void closeWindow();
+          }
+        }, 120);
       }
     }
     window.addEventListener("blur", handleBlur);
-    return () => window.removeEventListener("blur", handleBlur);
+    return () => {
+      window.removeEventListener("blur", handleBlur);
+      if (blurTimeout) clearTimeout(blurTimeout);
+    };
   }, []);
 
-  // Periodic date-check timer: every 30 seconds, if the day changed or interval elapsed, reload
+  
   useEffect(() => {
     let lastDate = format(new Date(), "yyyy-MM-dd");
     const interval = setInterval(() => {
@@ -72,7 +89,7 @@ export function QuickCaptureWindow() {
     } catch {
       await getCurrentWindow().startDragging();
     } finally {
-      // After drag ends focus returns; reset flag after a small delay
+      
       setTimeout(() => {
         isDraggingRef.current = false;
       }, 300);
@@ -90,7 +107,7 @@ export function QuickCaptureWindow() {
   const currentDateHeader = format(new Date(), "MMMM d, EEEE");
   const todayStr = format(new Date(), "yyyy-MM-dd");
 
-  // Pending tasks include overdue tasks and today's tasks
+  
   const pendingTasks = [...overdueTasks, ...todayTasks.filter((t) => !overdueTasks.some((o) => o.id === t.id))];
   const filteredTasks: Task[] = tab === "pending" ? pendingTasks : completedToday;
 
@@ -100,7 +117,7 @@ export function QuickCaptureWindow() {
         className="popup-topbar"
         data-tauri-drag-region
         onMouseDown={(e) => {
-          // Only drag on primary button, not on close button clicks
+          
           if (e.button === 0 && !(e.target as HTMLElement).closest("button")) {
             void startDrag();
           }

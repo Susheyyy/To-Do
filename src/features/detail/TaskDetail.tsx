@@ -1,6 +1,8 @@
 import { FormEvent, useState } from "react";
 import { addDays, addMinutes, format } from "date-fns";
 
+import { MarkdownRenderer } from "../../components/MarkdownRenderer";
+import { DatePickerPopover } from "../../components/DatePickerPopover";
 import { Icon } from "../../components/Icon";
 import { toInput, useTasks } from "../../stores/tasks.store";
 import { useUi } from "../../stores/ui.store";
@@ -32,6 +34,7 @@ function DetailBody({ task, onClose }: { task: Task; onClose: () => void }) {
 
   const [title, setTitle] = useState(task.title);
   const [notes, setNotes] = useState(task.notes ?? "");
+  const [isEditingNotes, setIsEditingNotes] = useState(false);
   const [tagText, setTagText] = useState(task.tags.map((t) => `@${t}`).join(" "));
   const [subtaskText, setSubtaskText] = useState("");
 
@@ -91,22 +94,64 @@ function DetailBody({ task, onClose }: { task: Task; onClose: () => void }) {
           aria-label="Task title"
         />
 
-        <textarea
-          className="detail-notes"
-          placeholder="Description"
-          rows={3}
-          value={notes}
-          onChange={(e) => setNotes(e.target.value)}
-          onBlur={saveNotes}
-        />
+        <div className="notes-container" style={{ marginBottom: "16px" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "4px" }}>
+            <span style={{ fontSize: "11px", fontWeight: 600, color: "var(--color-text-secondary, #8e8e93)", textTransform: "uppercase" }}>
+              Notes (Markdown supported)
+            </span>
+            {notes && (
+              <button
+                type="button"
+                onClick={() => setIsEditingNotes(!isEditingNotes)}
+                style={{
+                  fontSize: "11px",
+                  background: "transparent",
+                  border: "none",
+                  color: "var(--color-accent, #6366f1)",
+                  cursor: "pointer",
+                }}
+              >
+                {isEditingNotes ? "Preview" : "Edit"}
+              </button>
+            )}
+          </div>
+          {isEditingNotes || !notes ? (
+            <textarea
+              className="detail-notes"
+              placeholder="Add description, notes, or links... (Markdown supported)"
+              rows={4}
+              value={notes}
+              onChange={(e) => setNotes(e.target.value)}
+              onBlur={() => {
+                saveNotes();
+                if (notes.trim()) setIsEditingNotes(false);
+              }}
+              autoFocus={isEditingNotes}
+            />
+          ) : (
+            <div
+              onClick={() => setIsEditingNotes(true)}
+              style={{
+                minHeight: "60px",
+                padding: "8px 10px",
+                background: "var(--color-bg-secondary, #1a1a20)",
+                borderRadius: "8px",
+                border: "1px solid var(--color-border, #2d2d38)",
+                cursor: "pointer",
+              }}
+              title="Click to edit notes"
+            >
+              <MarkdownRenderer content={notes} />
+            </div>
+          )}
+        </div>
 
         <div className="field-row">
           <label className="field">
             <span>Due date</span>
-            <input
-              type="date"
-              value={task.dueDate ?? ""}
-              onChange={(e) => save({ dueDate: e.target.value || null })}
+            <DatePickerPopover
+              value={task.dueDate ?? null}
+              onChange={(date) => save({ dueDate: date })}
             />
           </label>
           <label className="field">

@@ -24,6 +24,7 @@ export interface Task {
 }
 
 export interface TaskInput {
+  id?: string;
   title: string;
   notes: string | null;
   priority: Priority;
