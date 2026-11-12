@@ -39,6 +39,7 @@ export function QuickAdd({
   const habits = useHabits((s) => s.habits);
   const logHabit = useHabits((s) => s.logHabit);
   const loadHabits = useHabits((s) => s.load);
+  const [saveError, setSaveError] = useState<string | null>(null);
   const [text, setText] = useState("");
   const [listening, setListening] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -156,8 +157,15 @@ export function QuickAdd({
       }
     }
 
-    const projectId = parsed.projectName ? await ensureProject(parsed.projectName) : defaultProjectId;
-    await createTask({
+    setSaveError(null);
+    let projectId = defaultProjectId;
+    try {
+      if (parsed.projectName) projectId = await ensureProject(parsed.projectName);
+    } catch (err) {
+      setSaveError(String(err));
+      return;
+    }
+    const saved = await createTask({
       title: parsed.title,
       notes: null,
       priority: parsed.priority,
@@ -168,6 +176,10 @@ export function QuickAdd({
       tags: parsed.tags,
       recurRule: parsed.recurRule,
     });
+    if (!saved) {
+      setSaveError(useTasks.getState().error ?? "Could not save the task.");
+      return;
+    }
     setText("");
     onDone?.();
   }
@@ -176,6 +188,7 @@ export function QuickAdd({
 
   return (
     <form className={isClean ? "quick-add-clean" : "card quick-add"} onSubmit={submit}>
+      {saveError && <p role="alert">{saveError}</p>}
       <div className="quick-add-row">
         <input
           ref={inputRef}

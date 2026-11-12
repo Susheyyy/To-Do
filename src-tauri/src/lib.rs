@@ -16,7 +16,7 @@ use tauri::{
 use tauri_plugin_autostart::{MacosLauncher, ManagerExt};
 use tauri_plugin_global_shortcut::{Code, GlobalShortcutExt, Modifiers, Shortcut, ShortcutState};
 
-use commands::{backup, export, habits, history, projects, sync, tasks, tray};
+use commands::{backup, calendar, export, habits, history, projects, sync, tasks, tray};
 use services::history::History;
 use state::AppState;
 
@@ -207,6 +207,7 @@ pub fn run() {
         })
         .invoke_handler(tauri::generate_handler![
             tasks::create_task,
+            tasks::batch_tasks,
             tasks::update_task,
             tasks::set_task_completed,
             tasks::delete_task,
@@ -216,7 +217,6 @@ pub fn run() {
             tasks::list_today,
             tasks::list_overdue,
             tasks::list_tasks_for_project,
-            tasks::list_tasks_for_tag,
             tasks::list_completed_between,
             tasks::generate_recurring,
             tasks::reschedule_overdue,
@@ -242,8 +242,9 @@ pub fn run() {
             habits::unlog_habit,
             habits::list_habit_logs,
             backup::create_backup,
-            backup::list_backups,
-            backup::restore_backup,
+            calendar::get_calendar_changes,
+            calendar::acknowledge_calendar_change,
+            calendar::defer_calendar_change,
             export::export_json,
             export::export_csv,
             export::export_ical,

@@ -1,48 +1,45 @@
 import { addDays, format } from "date-fns";
 import { Icon } from "./Icon";
-import { useTasks } from "../stores/tasks.store";
+import { todayIso, useTasks } from "../stores/tasks.store";
 import type { Priority } from "../types/models";
 
 interface Props {
   selectedIds: string[];
   onClear: () => void;
+  showScheduleToday?: boolean;
 }
 
-export function BatchToolbar({ selectedIds, onClear }: Props) {
+export function BatchToolbar({ selectedIds, onClear, showScheduleToday }: Props) {
   const batchToggle = useTasks((s) => s.batchToggle);
   const batchDelete = useTasks((s) => s.batchDelete);
   const batchReschedule = useTasks((s) => s.batchReschedule);
   const batchSetPriority = useTasks((s) => s.batchSetPriority);
   const batchMoveProject = useTasks((s) => s.batchMoveProject);
+  const error = useTasks((s) => s.error);
   const projects = useTasks((s) => s.projects);
 
   if (selectedIds.length === 0) return null;
 
   async function handleComplete() {
-    await batchToggle(selectedIds, true);
-    onClear();
+    if (await batchToggle(selectedIds, true)) onClear();
   }
 
   async function handleDelete() {
     if (!window.confirm(`Delete ${selectedIds.length} selected tasks?`)) return;
-    await batchDelete(selectedIds);
-    onClear();
+    if (await batchDelete(selectedIds)) onClear();
   }
 
   async function handleTomorrow() {
     const tomorrowStr = format(addDays(new Date(), 1), "yyyy-MM-dd");
-    await batchReschedule(selectedIds, tomorrowStr);
-    onClear();
+    if (await batchReschedule(selectedIds, tomorrowStr)) onClear();
   }
 
   async function handlePriority(p: Priority) {
-    await batchSetPriority(selectedIds, p);
-    onClear();
+    if (await batchSetPriority(selectedIds, p)) onClear();
   }
 
   async function handleProject(projectId: string | null) {
-    await batchMoveProject(selectedIds, projectId);
-    onClear();
+    if (await batchMoveProject(selectedIds, projectId)) onClear();
   }
 
   return (
@@ -60,6 +57,9 @@ export function BatchToolbar({ selectedIds, onClear }: Props) {
         padding: "8px 16px",
         boxShadow: "0 12px 32px rgba(0,0,0,0.5)",
         display: "flex",
+        flexWrap: "wrap",
+        width: "max-content",
+        maxWidth: "calc(100vw - 32px)",
         alignItems: "center",
         gap: "12px",
       }}
@@ -82,6 +82,7 @@ export function BatchToolbar({ selectedIds, onClear }: Props) {
         </span>
       </div>
 
+      {error && <span role="alert" className="error-text">{error}</span>}
       <div style={{ height: "16px", width: "1px", background: "var(--color-border, #333340)" }} />
 
       <button
@@ -93,6 +94,18 @@ export function BatchToolbar({ selectedIds, onClear }: Props) {
         <Icon name="check" size={13} />
         Complete
       </button>
+
+      {showScheduleToday && (
+        <button
+          type="button"
+          className="chip"
+          onClick={async () => {
+            if (await batchReschedule(selectedIds, todayIso())) onClear();
+          }}
+        >
+          Schedule for today
+        </button>
+      )}
 
       <button
         type="button"

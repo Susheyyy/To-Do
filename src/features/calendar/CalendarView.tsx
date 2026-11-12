@@ -54,7 +54,7 @@ export function CalendarView() {
   async function handleCreateTimeBlock(e: React.FormEvent) {
     e.preventDefault();
     if (!blockingModal || !blockTitle.trim()) return;
-    await createTask({
+    const saved = await createTask({
       title: blockTitle.trim(),
       notes: `Time-block duration: ${blockDuration}m`,
       priority: "medium",
@@ -65,6 +65,7 @@ export function CalendarView() {
       tags: ["timeblock"],
       recurRule: null,
     });
+    if (!saved) return;
     setBlockTitle("");
     setBlockingModal(null);
   }

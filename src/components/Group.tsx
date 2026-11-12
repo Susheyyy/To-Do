@@ -11,6 +11,7 @@ export function Group({
   footer,
   selectedIds,
   onSelectTask,
+  showSelection = false,
 }: {
   id?: string;
   title: string;
@@ -18,7 +19,8 @@ export function Group({
   extra?: ReactNode;
   footer?: ReactNode;
   selectedIds?: string[];
-  onSelectTask?: (id: string, e: React.MouseEvent) => void;
+  onSelectTask?: (id: string) => void;
+  showSelection?: boolean;
 }) {
   return (
     <section id={id} className="group">
@@ -35,7 +37,8 @@ export function Group({
             key={task.id}
             task={task}
             isSelected={selectedIds?.includes(task.id)}
-            onSelect={(e) => onSelectTask?.(task.id, e)}
+            showSelection={showSelection}
+            onSelect={onSelectTask && (() => onSelectTask(task.id))}
           />
         ))}
       </div>

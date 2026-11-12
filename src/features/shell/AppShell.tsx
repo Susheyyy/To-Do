@@ -1,11 +1,13 @@
 import { useEffect } from "react";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { addDays, startOfDay } from "date-fns";
 
 import { ConfirmHost } from "../../components/ConfirmHost";
 import { QuickAdd } from "../../components/QuickAdd";
 import { Sidebar } from "../../components/Sidebar";
-import { api } from "../../lib/api";
+import { api, isTauri } from "../../lib/api";
 import { NotificationManager } from "../../lib/notifications";
-import { useTasks } from "../../stores/tasks.store";
+import { todayIso, useTasks } from "../../stores/tasks.store";
 import { ListId, useUi, ViewId } from "../../stores/ui.store";
 import { TaskDetail } from "../detail/TaskDetail";
 import { FiltersView } from "../filters/FiltersView";
@@ -23,7 +25,7 @@ function renderView(view: ViewId) {
   if (view === "habits") return <HabitsView />;
   if (view === "calendar") return <CalendarView />;
   if (view.startsWith("project:")) return <ProjectView projectId={view.slice("project:".length)} />;
-  return <ListView id={view as ListId} />;
+  return <ListView key={view} id={view as ListId} />;
 }
 
 export function AppShell() {
@@ -33,6 +35,48 @@ export function AppShell() {
   const undo = useTasks((s) => s.undo);
   const redo = useTasks((s) => s.redo);
   const overdueCount = useTasks((s) => s.overdue.length);
+
+  useEffect(() => {
+    let active = true;
+    let refreshedDay: string | undefined;
+    let midnight: number;
+    const refresh = () => {
+      if (!active) return;
+      const day = todayIso();
+      if (refreshedDay !== day) {
+        refreshedDay = day;
+        void useTasks.getState().load().catch((error) => {
+          if (!active) return;
+          if (refreshedDay === day) refreshedDay = undefined;
+          useTasks.setState({ error: String(error) });
+        });
+      }
+      window.clearTimeout(midnight);
+      const now = new Date();
+      const nextMidnight = startOfDay(addDays(now, 1)).getTime();
+      midnight = window.setTimeout(refresh, nextMidnight - now.getTime());
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+    refresh();
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisible);
+    const nativeFocus = isTauri
+      ? getCurrentWindow().onFocusChanged(({ payload }) => {
+          if (payload) refresh();
+        }).catch(() => undefined)
+      : undefined;
+
+    return () => {
+      active = false;
+      window.clearTimeout(midnight);
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisible);
+      void nativeFocus?.then((unlisten) => unlisten?.());
+    };
+  }, []);
 
   useEffect(() => {
     void api.updateTrayBadge(overdueCount);

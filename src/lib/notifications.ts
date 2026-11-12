@@ -45,10 +45,6 @@ export function NotificationManager() {
   const briefingDateRef = useRef<string>("");
 
   useEffect(() => {
-    void load();
-  }, [load]);
-
-  useEffect(() => {
     async function checkPermission() {
       try {
         let granted = await isPermissionGranted();

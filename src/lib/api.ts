@@ -1,5 +1,5 @@
 import { invoke as tauriInvoke } from "@tauri-apps/api/core";
-import type { Habit, HabitInput, HabitLog, Project, Section, Task, TaskInput } from "../types/models";
+import type { Habit, HabitInput, HabitLog, Project, Section, Priority, Task, TaskInput } from "../types/models";
 
 
 export const isTauri =
@@ -19,15 +19,6 @@ function loadLocal<T>(key: string, fallback: T): T {
     return raw ? JSON.parse(raw) : fallback;
   } catch {
     return fallback;
-  }
-}
-
-function saveLocal<T>(key: string, data: T) {
-  if (typeof window === "undefined") return;
-  try {
-    localStorage.setItem(key, JSON.stringify(data));
-  } catch (err) {
-    console.warn("Failed to persist data in browser storage:", err);
   }
 }
 
@@ -51,9 +42,19 @@ async function safeInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
     case "list_open_tasks":
       return mockStorage.tasks.filter((t) => !t.completedAt) as unknown as T;
     case "list_today":
-      return mockStorage.tasks.filter((t) => !t.completedAt) as unknown as T;
-    case "list_overdue":
-      return [] as unknown as T;
+      return mockStorage.tasks.filter((t) => !t.completedAt && t.dueDate === args.today) as unknown as T;
+    case "list_overdue": {
+      const today = args.today as string;
+      return mockStorage.tasks.filter((t) => !t.completedAt && t.dueDate && t.dueDate < today) as unknown as T;
+    }
+    case "list_completed_between": {
+      const start = Date.parse(args.start as string);
+      const end = Date.parse(args.end as string);
+      return mockStorage.tasks.filter((t) => {
+        const completed = t.completedAt ? Date.parse(t.completedAt) : NaN;
+        return completed >= start && completed < end;
+      }) as unknown as T;
+    }
     case "list_projects":
       return mockStorage.projects as unknown as T;
     case "list_habits":
@@ -78,27 +79,61 @@ async function safeInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
         createdAt: new Date().toISOString(),
         updatedAt: new Date().toISOString(),
       };
-      mockStorage.tasks.push(newTask);
-      saveLocal(STORAGE_KEY_TASKS, mockStorage.tasks);
+      const tasks = [...mockStorage.tasks, newTask];
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+      mockStorage.tasks = tasks;
       return newTask as unknown as T;
     }
+    case "batch_tasks": {
+      const ids = new Set(args.ids as string[]);
+      const action = args.action as BatchTaskAction;
+      const selected = mockStorage.tasks.filter((task) => ids.has(task.id));
+      if (selected.length !== ids.size) throw new Error("A selected task no longer exists.");
+      const now = new Date().toISOString();
+      const updates = new Map(selected.map((task) => {
+        const next = { ...task, updatedAt: now };
+        switch (action.kind) {
+          case "complete": next.completedAt = action.done ? now : null; break;
+          case "reschedule": next.dueDate = action.dueDate; break;
+          case "setPriority": next.priority = action.priority; break;
+          case "move": next.projectId = action.projectId; next.sectionId = null; break;
+        }
+        return [task.id, next];
+      }));
+      const tasks = action.kind === "delete"
+        ? mockStorage.tasks.filter((task) => !ids.has(task.id))
+        : mockStorage.tasks.map((task) => updates.get(task.id) ?? task);
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+      mockStorage.tasks = tasks;
+      return (action.kind === "delete" ? [] : [...updates.values()]) as unknown as T;
+    }
+    case "list_tasks_for_project":
+      return mockStorage.tasks.filter((task) => task.projectId === args.projectId) as unknown as T;
+    case "search_tasks_fts": {
+      const query = String(args.query).trim().toLowerCase();
+      return mockStorage.tasks.filter((task) =>
+        [task.title, task.notes, ...task.tags].some((field) => field?.toLowerCase().includes(query))
+      ) as unknown as T;
+    }
     case "set_task_completed": {
-      const id = args.id as string;
-      const done = args.done as boolean;
-      const t = mockStorage.tasks.find((item) => item.id === id);
-      if (t) {
-        t.completedAt = done ? new Date().toISOString() : null;
-        saveLocal(STORAGE_KEY_TASKS, mockStorage.tasks);
-      }
-      return (t || {}) as unknown as T;
+      const task = mockStorage.tasks.find((item) => item.id === args.id);
+      if (!task) throw new Error("Task no longer exists.");
+      const now = new Date().toISOString();
+      const updated = { ...task, updatedAt: now, completedAt: args.done ? now : null };
+      const tasks = mockStorage.tasks.map((item) => item.id === task.id ? updated : item);
+      localStorage.setItem(STORAGE_KEY_TASKS, JSON.stringify(tasks));
+      mockStorage.tasks = tasks;
+      return { task: updated, nextTask: null } as unknown as T;
     }
     case "get_sync_status":
       return {
-        enabled: true,
-        server_url: "http://localhost:4040",
+        enabled: false,
+        server_url: null,
         device_id: "mobile_web_device",
         unsynced_count: 0,
         last_synced_at: null,
+        pull_cursor: null,
+        quarantined_count: 0,
       } as unknown as T;
     case "set_sync_config":
     case "mark_synced":
@@ -107,14 +142,22 @@ async function safeInvoke<T>(cmd: string, args: Record<string, unknown> = {}): P
     case "start_dragging":
       return undefined as unknown as T;
     default:
-      return [] as unknown as T;
+      throw new Error(`This action requires the desktop app (${cmd}).`);
   }
 }
 
+export type BatchTaskAction =
+  | { kind: "complete"; done: boolean }
+  | { kind: "delete" }
+  | { kind: "reschedule"; dueDate: string | null }
+  | { kind: "setPriority"; priority: Priority }
+  | { kind: "move"; projectId: string | null };
+
 export const api = {
+  batchTasks: (ids: string[], action: BatchTaskAction) => safeInvoke<Task[]>("batch_tasks", { ids, action }),
   createTask: (input: TaskInput) => safeInvoke<Task>("create_task", { input }),
   updateTask: (id: string, input: TaskInput) => safeInvoke<Task>("update_task", { id, input }),
-  setTaskCompleted: (id: string, done: boolean) => safeInvoke<Task>("set_task_completed", { id, done }),
+  setTaskCompleted: (id: string, done: boolean) => safeInvoke<{ task: Task; nextTask: Task | null }>("set_task_completed", { id, done }),
   deleteTask: (id: string) => safeInvoke<void>("delete_task", { id }),
   addSubtask: (taskId: string, title: string) => safeInvoke<Task>("add_subtask", { taskId, title }),
   toggleSubtask: (taskId: string, subtaskId: string, done: boolean) =>
@@ -145,13 +188,19 @@ export const api = {
   logHabit: (habitId: string, date: string) => safeInvoke<HabitLog>("log_habit", { habitId, date }),
   unlogHabit: (habitId: string, date: string) => safeInvoke<void>("unlog_habit", { habitId, date }),
   listHabitLogs: (start: string, end: string) => safeInvoke<HabitLog[]>("list_habit_logs", { start, end }),
+  getCalendarChanges: () =>
+    safeInvoke<{ changes: { revision: number; taskId: string; task: Task | null }[]; error: string | null }>("get_calendar_changes"),
+  acknowledgeCalendarChange: (revision: number) =>
+    safeInvoke<void>("acknowledge_calendar_change", { revision }),
+  deferCalendarChange: (revision: number, error: string) =>
+    safeInvoke<void>("defer_calendar_change", { revision, error }),
   createBackup: () => safeInvoke<string>("create_backup"),
   exportJson: () => safeInvoke<string>("export_json"),
   exportCsv: () => safeInvoke<string>("export_csv"),
   exportIcal: () => safeInvoke<string>("export_ical"),
   generateRecurring: () => safeInvoke<number>("generate_recurring"),
   rescheduleOverdue: (targetDate: string) =>
-    safeInvoke<number>("reschedule_overdue", { targetDate }),
+    safeInvoke<Task[]>("reschedule_overdue", { targetDate }),
   searchTasksFts: (query: string) => safeInvoke<Task[]>("search_tasks_fts", { query }),
   getSyncStatus: () =>
     safeInvoke<{
@@ -160,9 +209,11 @@ export const api = {
       device_id: string;
       unsynced_count: number;
       last_synced_at: string | null;
+      pull_cursor: string | null;
+      quarantined_count: number;
     }>("get_sync_status"),
-  setSyncConfig: (enabled: boolean, serverUrl?: string | null) =>
-    safeInvoke<void>("set_sync_config", { enabled, serverUrl: serverUrl ?? null }),
+  setSyncConfig: (enabled: boolean | null, serverUrl?: string, groupId?: string) =>
+    safeInvoke<void>("set_sync_config", { enabled, serverUrl: serverUrl ?? null, groupId: groupId ?? null }),
   getUnsyncedItems: (limit?: number) =>
     safeInvoke<
       {
@@ -185,6 +236,7 @@ export const api = {
       op_type: string;
       payload: string | null;
       updated_at: string;
-    }[]
-  ) => safeInvoke<number>("apply_sync_changes", { changes }),
+    }[],
+    cursor: string,
+  ) => safeInvoke<number>("apply_sync_changes", { changes, cursor }),
 };

@@ -1,4 +1,5 @@
 pub mod backup;
+pub mod calendar;
 pub mod export;
 pub mod habits;
 pub mod history;

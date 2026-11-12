@@ -10,7 +10,7 @@ import { Icon } from "../../components/Icon";
 import { Mascot } from "../../components/Mascot";
 import { BatchToolbar } from "../../components/BatchToolbar";
 import { sortTasks } from "../../lib/sortTasks";
-import { todayIso, useTasks } from "../../stores/tasks.store";
+import { useTasks } from "../../stores/tasks.store";
 import { ListId, useUi } from "../../stores/ui.store";
 import type { Priority, Task } from "../../types/models";
 import { taskOccursOnDate } from "../../lib/recurrence";
@@ -31,10 +31,9 @@ const PRIORITY_COLUMNS: { key: Priority; title: string }[] = [
   { key: "none", title: "Priority 4" },
 ];
 
-const dayIso = (offset: number) => format(addDays(new Date(), offset), "yyyy-MM-dd");
-
 export function ListView({ id }: { id: ListId }) {
   const { theme } = useTheme();
+  const localDay = useTasks((s) => s.localDay);
   const open = useTasks((s) => s.open);
   const today = useTasks((s) => s.today);
   const overdue = useTasks((s) => s.overdue);
@@ -70,8 +69,14 @@ export function ListView({ id }: { id: ListId }) {
   const rawDueNow = [...overdue, ...today];
   const dueNow = applyFilters(rawDueNow);
   const inbox = applyFilters(open.filter((t) => !t.dueDate && !t.projectId));
-  const days = Array.from({ length: 7 }, (_, i) => dayIso(i));
-  const calendarDays = Array.from({ length: 14 }, (_, i) => dayIso(i));
+  const date = parseISO(localDay);
+  const calendarDays = Array.from({ length: 14 }, (_, i) => format(addDays(date, i), "yyyy-MM-dd"));
+  const days = calendarDays.slice(0, 7);
+  const upcomingSelection = {
+    selectedIds: selectedBatchIds,
+    onSelectTask: toggleSelectTask,
+    showSelection: true,
+  };
   const tasksOn = (d: string) => applyFilters(open.filter((t) => taskOccursOnDate(t, d)));
   const later = applyFilters(
     open.filter((t) => !t.recurRule && t.dueDate !== null && t.dueDate > days[6])
@@ -103,7 +108,7 @@ export function ListView({ id }: { id: ListId }) {
         </div>
         {id === "today" && (
           <div className="page-sub-row">
-            <span className="page-sub">{format(new Date(), "EEEE, d MMMM")}</span>
+            <span className="page-sub">{format(date, "EEEE, d MMMM")}</span>
             <span className="page-sub-dot">·</span>
             <span className="page-sub">
               {rawDueNow.length} pending · {completedToday.length} done today
@@ -132,7 +137,7 @@ export function ListView({ id }: { id: ListId }) {
 
       {id === "today" && layout === "list" && (
         <div className="page-add-inline">
-          <AddInline due={todayIso()} />
+          <AddInline due={localDay} />
         </div>
       )}
 
@@ -281,13 +286,13 @@ export function ListView({ id }: { id: ListId }) {
                     {
                       key: "inbox",
                       title: "Inbox",
-                      due: todayIso(),
+                      due: localDay,
                       tasks: dueNow.filter((t) => !t.projectId),
                     },
                     ...projects.map((p) => ({
                       key: p.id,
                       title: p.name,
-                      due: todayIso(),
+                      due: localDay,
                       projectId: p.id,
                       tasks: dueNow.filter((t) => t.projectId === p.id),
                     })),
@@ -299,20 +304,20 @@ export function ListView({ id }: { id: ListId }) {
                       .map((tag) => ({
                         key: tag,
                         title: `@${tag}`,
-                        due: todayIso(),
+                        due: localDay,
                         tasks: dueNow.filter((t) => t.tags.includes(tag)),
                       })),
                     {
                       key: "untagged",
                       title: "No label",
-                      due: todayIso(),
+                      due: localDay,
                       tasks: dueNow.filter((t) => t.tags.length === 0),
                     },
                   ]
                 : PRIORITY_COLUMNS.map((c) => ({
                     key: c.key,
                     title: c.title,
-                    due: todayIso(),
+                    due: localDay,
                     tasks: dueNow.filter((t) => t.priority === c.key),
                   }))
             }
@@ -321,46 +326,34 @@ export function ListView({ id }: { id: ListId }) {
 
         {id === "upcoming" && layout === "calendar" && (
           <div className="calendar-view-placeholder">
-            <div className="week-strip" style={{ marginTop: 0 }}>
-              {calendarDays.slice(0, 7).map((d) => (
-                <div key={d} className="calendar-col">
-                  <div className="calendar-col-header">
-                    <span className="week-name">{format(parseISO(d), "EEE")}</span>
-                    <span className="week-num">{format(parseISO(d), "d")}</span>
+            {[days, calendarDays.slice(7)].map((week, index) => (
+              <div key={week[0]} className="week-strip" style={{ marginTop: index === 0 ? 0 : 8 }}>
+                {week.map((d) => (
+                  <div key={d} className="calendar-col">
+                    <div className="calendar-col-header">
+                      <span className="week-name">{format(parseISO(d), "EEE")}</span>
+                      <span className="week-num">{format(parseISO(d), "d")}</span>
+                    </div>
+                    <div className="calendar-task-list">
+                      {tasksOn(d).map((task) => (
+                        <label key={task.id} className="calendar-task-card">
+                          <input
+                            type="checkbox"
+                            checked={selectedBatchIds.includes(task.id)}
+                            aria-label={`Select ${task.title}`}
+                            onChange={() => toggleSelectTask(task.id)}
+                          />
+                          <span className={`priority-${task.priority}`}>
+                            <Icon name="flag" size={12} />
+                          </span>
+                          <span className="calendar-task-title">{task.title}</span>
+                        </label>
+                      ))}
+                    </div>
                   </div>
-                  <div className="calendar-task-list">
-                    {tasksOn(d).map((task) => (
-                      <div key={task.id} className="calendar-task-card">
-                        <span className={`priority-${task.priority}`}>
-                          <Icon name="flag" size={12} />
-                        </span>
-                        <span className="calendar-task-title">{task.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
-            <div className="week-strip" style={{ marginTop: 8 }}>
-              {calendarDays.slice(7).map((d) => (
-                <div key={d} className="calendar-col">
-                  <div className="calendar-col-header">
-                    <span className="week-name">{format(parseISO(d), "EEE")}</span>
-                    <span className="week-num">{format(parseISO(d), "d")}</span>
-                  </div>
-                  <div className="calendar-task-list">
-                    {tasksOn(d).map((task) => (
-                      <div key={task.id} className="calendar-task-card">
-                        <span className={`priority-${task.priority}`}>
-                          <Icon name="flag" size={12} />
-                        </span>
-                        <span className="calendar-task-title">{task.title}</span>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ))}
-            </div>
+                ))}
+              </div>
+            ))}
           </div>
         )}
 
@@ -368,6 +361,7 @@ export function ListView({ id }: { id: ListId }) {
           <>
             {overdue.length > 0 && (
               <Group
+                {...upcomingSelection}
                 title="Overdue"
                 tasks={applyFilters(overdue)}
                 extra={
@@ -379,6 +373,7 @@ export function ListView({ id }: { id: ListId }) {
             )}
             {days.map((d, i) => (
               <Group
+                {...upcomingSelection}
                 key={d}
                 id={`day-${d}`}
                 title={i === 0 ? `Today · ${format(parseISO(d), "EEEE, d MMM")}` : format(parseISO(d), "EEEE, d MMM")}
@@ -386,7 +381,7 @@ export function ListView({ id }: { id: ListId }) {
                 footer={<AddInline due={d} />}
               />
             ))}
-            {later.length > 0 && <Group title="Later" tasks={later} />}
+            {later.length > 0 && <Group {...upcomingSelection} title="Later" tasks={later} />}
           </>
         )}
 
@@ -401,6 +396,7 @@ export function ListView({ id }: { id: ListId }) {
       <BatchToolbar
         selectedIds={selectedBatchIds}
         onClear={() => setSelectedBatchIds([])}
+        showScheduleToday={id === "upcoming"}
       />
     </div>
   );

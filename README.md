@@ -4,7 +4,7 @@ To-Do is a modern, privacy-first desktop task and habit management application b
 
 ### ⚝ Features
 - **Local-First & Offline Ready**: All tasks, projects, notes, and habits are stored locally on your device in SQLite with WAL mode. Zero tracking, zero forced cloud dependencies.
-- **Cross-Device Sync Engine**: Optional background peer-to-peer relay sync engine (`sync-server`) with incremental delta replication and Last-Write-Wins (LWW) conflict resolution across devices and PWA.
+- **Cross-Device Sync Engine**: Optional background authenticated relay sync engine (`sync-server`) with incremental delta replication and Last-Write-Wins (LWW) conflict resolution across desktop devices.
 - **Google Calendar Real-Time Sync**: Direct OAuth integration with Google Calendar. Tasks created with due dates automatically create and synchronize events in a dedicated "Todo Desktop" Google calendar.
 - **Productivity Analytics & Heatmap**: Built-in 365-day GitHub-style contribution activity heatmap, total completions, active streaks, and daily task completion statistics.
 - **Floating Quick-Capture Capsule (`Ctrl + Alt + Space`)**: Summon an omnibar anywhere on your desktop to instantly capture ideas, paste links, or set due dates without interrupting your workflow.
@@ -62,10 +62,14 @@ npm run tauri dev
 ---
 
 #### 4. Run Cross-Device Sync Server (Optional)
-To enable multi-device sync or the live `/calendar.ics` feed:
-```bash
+Run one relay instance per trusted group with Node.js 22.13 or newer. The relay imports an existing JSON store into a SQLite file with the same path plus a `.sqlite` suffix. It preserves the JSON file, relay identity, and download cursors. Back up the SQLite database after upgrading. Set the same relay URL and access token in Settings on each desktop. The relay defaults to loopback.
+
+```powershell
+$env:TODO_SYNC_TOKEN = node -p "require('node:crypto').randomBytes(32).toString('hex')"
 node sync-server/server.mjs
 ```
+
+Upgrade the relay and all desktop clients together. Keep the generated token for future starts. For other devices, put the relay behind an HTTPS reverse proxy. Separate groups need distinct tokens, separate `TODO_SYNC_STORE` files, and separate desktop databases. A desktop database stays bound to the same relay group, even if that relay changes URL. The relay prints a separate calendar subscription key at startup. Subscribe with `/calendar.ics?key=<calendar-key>` and treat the subscription URL as private.
 
 ---
 
@@ -102,7 +106,7 @@ To sync your tasks in real time with Google Calendar:
    - Open the desktop app and go to **Settings** ➔ **Google Calendar Real-Time Sync**.
    - Paste your Client ID and click **Connect Google Calendar**.
    - Sign in via the popup window and allow calendar permissions.
-   - All tasks with due dates and scheduled times will now automatically create and update events in your personal Google Calendar under a dedicated *"Todo Desktop"* calendar.
+   - Task saves create or update linked events in the *"Todo Desktop"* calendar. Completing or deleting a task removes its linked event. The desktop queues changes in its database and retries failed deliveries. Reconnect Google Calendar if your session expires.
 
 ---
 

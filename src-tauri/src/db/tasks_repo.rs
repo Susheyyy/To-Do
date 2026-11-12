@@ -7,7 +7,7 @@ use crate::error::{AppError, AppResult};
 use crate::models::{Subtask, Task, TaskInput};
 
 const PRIORITIES: [&str; 4] = ["high", "medium", "low", "none"];
-const SELECT_COLS: &str = "id, title, notes, priority, due_date, due_time, completed_at, project_id, section_id, recur_rule, created_at, updated_at";
+const SELECT_COLS: &str = "id, title, notes, priority, due_date, due_time, completed_at, project_id, section_id, recur_rule, created_at, updated_at, series_id";
 const ORDER: &str = "ORDER BY CASE priority WHEN 'high' THEN 0 WHEN 'medium' THEN 1 WHEN 'low' THEN 2 ELSE 3 END, due_time, created_at";
 
 fn now() -> String {
@@ -41,7 +41,7 @@ fn normalize_tag(raw: &str) -> Option<String> {
     }
 }
 
-fn set_tags(conn: &Connection, task_id: &str, tags: &[String]) -> AppResult<()> {
+pub(super) fn replace_tags(conn: &Connection, task_id: &str, tags: &[String]) -> AppResult<()> {
     conn.execute("DELETE FROM task_tags WHERE task_id = ?1", [task_id])?;
     let ts = now();
     for raw in tags {
@@ -59,6 +59,19 @@ fn set_tags(conn: &Connection, task_id: &str, tags: &[String]) -> AppResult<()> 
         )?;
     }
 
+    Ok(())
+}
+
+fn set_tags(conn: &Connection, task_id: &str, tags: &[String]) -> AppResult<()> {
+    replace_tags(conn, task_id, tags)?;
+    // The preceding task write queued a snapshot before its tag relations were replaced.
+    conn.execute(
+        "DELETE FROM sync_log WHERE id = (
+            SELECT MAX(id) FROM sync_log WHERE entity_type = 'task' AND entity_id = ?1 AND synced_at IS NULL
+         )",
+        [task_id],
+    )?;
+    let ts = now();
     conn.execute(
         "UPDATE tasks SET updated_at = ?2 WHERE id = ?1",
         params![task_id, ts],
@@ -101,7 +114,7 @@ pub fn get(conn: &Connection, id: &str) -> AppResult<Task> {
     let mut task = conn
         .query_row(
             "SELECT id, title, notes, priority, due_date, due_time, completed_at,
-                    project_id, section_id, recur_rule, created_at, updated_at
+                    project_id, section_id, recur_rule, created_at, updated_at, series_id
              FROM tasks WHERE id = ?1 AND deleted_at IS NULL",
             [id],
             |row| {
@@ -120,6 +133,7 @@ pub fn get(conn: &Connection, id: &str) -> AppResult<Task> {
                     subtasks: Vec::new(),
                     created_at: row.get(10)?,
                     updated_at: row.get(11)?,
+                    series_id: row.get(12)?,
                 })
             },
         )
@@ -155,6 +169,7 @@ fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<T
             subtasks: Vec::new(),
             created_at: row.get(10)?,
             updated_at: row.get(11)?,
+            series_id: row.get(12)?,
         });
     }
 
@@ -218,13 +233,20 @@ fn collect(conn: &Connection, sql: &str, args: &[&dyn ToSql]) -> AppResult<Vec<T
 }
 
 pub fn create(conn: &mut Connection, input: TaskInput) -> AppResult<Task> {
+    let tx = conn.transaction()?;
+    let task = create_in_transaction(&tx, input, None)?;
+    tx.commit()?;
+    Ok(task)
+}
+
+fn create_in_transaction(conn: &Connection, input: TaskInput, series: Option<&str>) -> AppResult<Task> {
     validate(&input)?;
     let id = input.id.clone().unwrap_or_else(|| Uuid::new_v4().to_string());
     let ts = now();
-    let tx = conn.transaction()?;
-    tx.execute(
-        "INSERT INTO tasks (id, title, notes, priority, due_date, due_time, project_id, section_id, recur_rule, created_at, updated_at)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10)
+    let series = input.recur_rule.as_ref().map(|_| series.unwrap_or(&id));
+    conn.execute(
+        "INSERT INTO tasks (id, title, notes, priority, due_date, due_time, project_id, section_id, recur_rule, created_at, updated_at, series_id)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?10, ?11)
          ON CONFLICT(id) DO UPDATE SET
             title = excluded.title,
             notes = excluded.notes,
@@ -234,7 +256,9 @@ pub fn create(conn: &mut Connection, input: TaskInput) -> AppResult<Task> {
             project_id = excluded.project_id,
             section_id = excluded.section_id,
             recur_rule = excluded.recur_rule,
-            updated_at = excluded.updated_at",
+            updated_at = excluded.updated_at,
+            series_id = CASE WHEN excluded.recur_rule IS NULL THEN NULL ELSE COALESCE(tasks.series_id, excluded.series_id) END,
+            deleted_at = NULL",
         params![
             id,
             input.title.trim(),
@@ -245,20 +269,27 @@ pub fn create(conn: &mut Connection, input: TaskInput) -> AppResult<Task> {
             input.project_id,
             input.section_id,
             input.recur_rule,
-            ts
+            ts,
+            series
         ],
     )?;
-    set_tags(&tx, &id, &input.tags)?;
-    tx.commit()?;
+    set_tags(conn, &id, &input.tags)?;
     get(conn, &id)
 }
 
 pub fn update(conn: &mut Connection, id: &str, input: TaskInput) -> AppResult<Task> {
-    validate(&input)?;
     let tx = conn.transaction()?;
-    let changed = tx.execute(
+    let task = update_in_transaction(&tx, id, input)?;
+    tx.commit()?;
+    Ok(task)
+}
+
+pub(crate) fn update_in_transaction(conn: &Connection, id: &str, input: TaskInput) -> AppResult<Task> {
+    validate(&input)?;
+    let changed = conn.execute(
         "UPDATE tasks SET title = ?2, notes = ?3, priority = ?4, due_date = ?5, due_time = ?6,
-                project_id = ?7, section_id = ?8, recur_rule = ?9, updated_at = ?10
+                project_id = ?7, section_id = ?8, recur_rule = ?9, updated_at = ?10,
+                series_id = CASE WHEN ?9 IS NULL THEN NULL ELSE COALESCE(series_id, id) END
          WHERE id = ?1 AND deleted_at IS NULL",
         params![
             id,
@@ -276,12 +307,18 @@ pub fn update(conn: &mut Connection, id: &str, input: TaskInput) -> AppResult<Ta
     if changed == 0 {
         return Err(AppError::NotFound(format!("task {id}")));
     }
-    set_tags(&tx, id, &input.tags)?;
-    tx.commit()?;
+    set_tags(conn, id, &input.tags)?;
     get(conn, id)
 }
 
-pub fn set_completed(conn: &mut Connection, id: &str, done: bool) -> AppResult<Task> {
+pub fn set_completed(conn: &mut Connection, id: &str, done: bool) -> AppResult<(Task, Option<Task>)> {
+    let tx = conn.transaction()?;
+    let task = set_completed_in_transaction(&tx, id, done)?;
+    tx.commit()?;
+    Ok(task)
+}
+
+pub(crate) fn set_completed_in_transaction(conn: &Connection, id: &str, done: bool) -> AppResult<(Task, Option<Task>)> {
     let completed_at = if done { Some(now()) } else { None };
     let changed = conn.execute(
         "UPDATE tasks SET completed_at = ?2, updated_at = ?3 WHERE id = ?1 AND deleted_at IS NULL",
@@ -293,39 +330,45 @@ pub fn set_completed(conn: &mut Connection, id: &str, done: bool) -> AppResult<T
     let task = get(conn, id)?;
 
     
+    let mut next_task = None;
     if done
         && let Some(rule) = &task.recur_rule
     {
-        let today_str = Utc::now().format("%Y-%m-%d").to_string();
+        let today_str = chrono::Local::now().format("%Y-%m-%d").to_string();
         let base_date = task.due_date.as_deref().unwrap_or(&today_str);
         if let Some(next_date) = crate::db::recur::next_due(base_date, rule) {
-            let exists: bool = conn.query_row(
-                "SELECT EXISTS(
-                    SELECT 1 FROM tasks 
-                    WHERE title = ?1 AND due_date = ?2 AND deleted_at IS NULL
-                )",
-                params![task.title.trim(), next_date],
-                |row| row.get(0),
-            )?;
-            if !exists {
-                let next_input = TaskInput {
-                    id: None,
-                    title: task.title.clone(),
-                    notes: task.notes.clone(),
-                    priority: task.priority.clone(),
-                    due_date: Some(next_date),
-                    due_time: task.due_time.clone(),
-                    project_id: task.project_id.clone(),
-                    section_id: task.section_id.clone(),
-                    tags: task.tags.clone(),
-                    recur_rule: Some(rule.clone()),
-                };
-                let _ = create(conn, next_input);
-            }
+            next_task = create_occurrence(conn, &task, rule, next_date)?;
         }
     }
 
-    Ok(task)
+    Ok((task, next_task))
+}
+
+fn create_occurrence(conn: &Connection, task: &Task, rule: &str, date: String) -> AppResult<Option<Task>> {
+    let series = task.series_id.as_deref().unwrap_or(&task.id);
+    let id = format!("occurrence:{series}:{date}");
+    let exists: bool = conn.query_row(
+        "SELECT EXISTS(SELECT 1 FROM tasks WHERE deleted_at IS NULL
+            AND (id = ?1 OR (series_id = ?2 AND due_date = ?3)))",
+        params![id, series, date],
+        |row| row.get(0),
+    )?;
+    if exists {
+        return Ok(None);
+    }
+    let input = TaskInput {
+        id: Some(id),
+        title: task.title.clone(),
+        notes: task.notes.clone(),
+        priority: task.priority.clone(),
+        due_date: Some(date),
+        due_time: task.due_time.clone(),
+        project_id: task.project_id.clone(),
+        section_id: task.section_id.clone(),
+        tags: task.tags.clone(),
+        recur_rule: Some(rule.to_owned()),
+    };
+    create_in_transaction(conn, input, Some(series)).map(Some)
 }
 
 pub fn soft_delete(conn: &Connection, id: &str) -> AppResult<()> {
@@ -412,25 +455,6 @@ pub fn list_for_project(conn: &Connection, project_id: &str) -> AppResult<Vec<Ta
     )
 }
 
-pub fn list_for_tag(conn: &Connection, tag: &str) -> AppResult<Vec<Task>> {
-    let name = normalize_tag(tag).ok_or_else(|| AppError::Invalid("tag is required".into()))?;
-    collect(
-        conn,
-        &format!(
-            "SELECT {SELECT_COLS} FROM tasks
-             WHERE deleted_at IS NULL
-               AND id IN (
-                   SELECT tt.task_id FROM task_tags tt
-                   JOIN tags t ON t.id = tt.tag_id
-                   WHERE t.name = ?1 COLLATE NOCASE
-               )
-             {ORDER}"
-        ),
-        &[&name],
-    )
-}
-
-
 pub fn find(conn: &Connection, id: &str) -> AppResult<Option<Task>> {
     match get(conn, id) {
         Ok(task) => Ok(Some(task)),
@@ -451,8 +475,8 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
         Some(task) => {
             conn.execute(
                 "INSERT INTO tasks (id, title, notes, priority, due_date, due_time, completed_at,
-                                    project_id, section_id, recur_rule, created_at, updated_at)
-                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+                                    project_id, section_id, recur_rule, created_at, updated_at, series_id)
+                 VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
                  ON CONFLICT(id) DO UPDATE SET
                     title = excluded.title,
                     notes = excluded.notes,
@@ -463,6 +487,7 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
                     project_id = excluded.project_id,
                     section_id = excluded.section_id,
                     recur_rule = excluded.recur_rule,
+                    series_id = excluded.series_id,
                     updated_at = excluded.updated_at,
                     deleted_at = NULL",
                 params![
@@ -477,15 +502,28 @@ pub fn restore(conn: &Connection, id: &str, snapshot: Option<&Task>) -> AppResul
                     task.section_id,
                     task.recur_rule,
                     task.created_at,
-                    ts
+                    ts,
+                    task.series_id
                 ],
             )?;
-            set_tags(conn, &task.id, &task.tags)?;
-            conn.execute("DELETE FROM subtasks WHERE task_id = ?1", [&task.id])?;
+            if load_tags(conn, id)? != task.tags {
+                set_tags(conn, id, &task.tags)?;
+            }
+            let current = load_subtasks(conn, id)?;
+            for subtask in &current {
+                if !task.subtasks.iter().any(|target| target.id == subtask.id) {
+                    conn.execute("DELETE FROM subtasks WHERE id = ?1", [&subtask.id])?;
+                }
+            }
             for subtask in &task.subtasks {
+                if current.contains(subtask) {
+                    continue;
+                }
                 conn.execute(
                     "INSERT INTO subtasks (id, task_id, title, completed_at, created_at, updated_at)
-                     VALUES (?1, ?2, ?3, ?4, ?5, ?5)",
+                     VALUES (?1, ?2, ?3, ?4, ?5, ?5)
+                     ON CONFLICT(id) DO UPDATE SET title = excluded.title,
+                        completed_at = excluded.completed_at, updated_at = excluded.updated_at, deleted_at = NULL",
                     params![subtask.id, task.id, subtask.title, subtask.completed_at, ts],
                 )?;
             }
@@ -529,31 +567,11 @@ pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
                 }
                 if next_due.as_str() >= today_str.as_str() {
                     
-                    let exists: bool = conn.query_row(
-                        "SELECT EXISTS(
-                            SELECT 1 FROM tasks 
-                            WHERE title = ?1 AND due_date = ?2 AND deleted_at IS NULL
-                        )",
-                        params![task.title.trim(), next_due],
-                        |row| row.get(0),
-                    )?;
-
-                    if !exists {
-                        let next_input = TaskInput {
-                            id: None,
-                            title: task.title.clone(),
-                            notes: task.notes.clone(),
-                            priority: task.priority.clone(),
-                            due_date: Some(next_due),
-                            due_time: task.due_time.clone(),
-                            project_id: task.project_id.clone(),
-                            section_id: task.section_id.clone(),
-                            tags: task.tags.clone(),
-                            recur_rule: Some(rule.clone()),
-                        };
-                        let _ = create(conn, next_input);
+                    let tx = conn.transaction()?;
+                    if create_occurrence(&tx, &task, rule, next_due)?.is_some() {
                         generated_count += 1;
                     }
+                    tx.commit()?;
                     break;
                 } else {
                     curr_due = next_due;
@@ -566,15 +584,20 @@ pub fn generate_missed_recurring(conn: &mut Connection) -> AppResult<usize> {
     Ok(generated_count)
 }
 
-pub fn reschedule_overdue(conn: &Connection, target_date: &str) -> AppResult<usize> {
-    let ts = now();
-    let count = conn.execute(
-        "UPDATE tasks 
-         SET due_date = ?1, updated_at = ?2 
-         WHERE due_date < ?1 AND completed_at IS NULL AND deleted_at IS NULL",
-        params![target_date, ts],
-    )?;
-    Ok(count)
+pub fn reschedule_overdue(conn: &mut Connection, target_date: &str) -> AppResult<Vec<Task>> {
+    let tx = conn.transaction()?;
+    let ids = {
+        let mut stmt = tx.prepare(
+            "UPDATE tasks SET due_date = ?1, updated_at = ?2
+             WHERE due_date < ?1 AND completed_at IS NULL AND deleted_at IS NULL
+             RETURNING id",
+        )?;
+        stmt.query_map(params![target_date, now()], |row| row.get::<_, String>(0))?
+            .collect::<Result<Vec<_>, _>>()?
+    };
+    let tasks = ids.iter().map(|id| get(&tx, id)).collect::<AppResult<Vec<_>>>()?;
+    tx.commit()?;
+    Ok(tasks)
 }
 
 pub fn search_fts(conn: &Connection, query: &str) -> AppResult<Vec<Task>> {
@@ -612,4 +635,63 @@ pub fn list_completed_between(conn: &Connection, start: &str, end: &str) -> AppR
         ),
         &[&start, &end],
     )
+}
+#[cfg(test)]
+mod integration_tests {
+    use super::*;
+    use crate::db::{sync_repo, test_connection};
+
+    fn recurring(id: &str) -> TaskInput {
+        serde_json::from_value(serde_json::json!({
+            "id": id, "title": "Review", "priority": "none",
+            "dueDate": "2026-01-01", "recurRule": "daily", "tags": ["Work", "focus"],
+        })).unwrap()
+    }
+
+    #[test]
+    fn same_title_series_create_independent_and_deterministic_successors() {
+        let mut first_device = test_connection();
+        let mut second_device = test_connection();
+        for conn in [&mut first_device, &mut second_device] {
+            create(conn, recurring("series-a")).unwrap();
+        }
+        create(&mut first_device, recurring("series-b")).unwrap();
+        let next = |conn: &mut Connection, id: &str| set_completed(conn, id, true).unwrap().1.unwrap();
+        let a = next(&mut first_device, "series-a");
+        let b = next(&mut first_device, "series-b");
+        let other = next(&mut second_device, "series-a");
+        assert_eq!(a.id, other.id);
+        assert_ne!(a.id, b.id);
+        assert_eq!(a.due_date, b.due_date);
+        assert!(set_completed(&mut first_device, "series-a", true).unwrap().1.is_none());
+    }
+
+    #[test]
+    fn tags_round_trip_and_remote_edits_enqueue_calendar_work() {
+        let mut sender = test_connection();
+        let mut receiver = test_connection();
+        create(&mut sender, recurring("task")).unwrap();
+        let queued = sync_repo::get_unsynced_items(&sender, 50).unwrap();
+        assert_eq!(queued.len(), 1);
+        let incoming = queued.into_iter().map(|item| sync_repo::IncomingChange {
+            entity_type: item.entity_type,
+            entity_id: item.entity_id,
+            op_type: item.op_type,
+            payload: item.payload,
+            updated_at: item.client_timestamp,
+        }).collect();
+        sync_repo::apply_incoming_changes(&mut receiver, incoming, "relay:1").unwrap();
+        assert_eq!(get(&receiver, "task").unwrap().tags, ["focus", "work"]);
+        assert!(sync_repo::get_unsynced_items(&receiver, 50).unwrap().is_empty());
+        let revision = |conn: &Connection| conn.query_row(
+            "SELECT revision FROM calendar_outbox WHERE task_id = 'task'", [], |row| row.get::<_, i64>(0),
+        ).unwrap();
+        let old = revision(&receiver);
+        let tx = receiver.transaction().unwrap();
+        restore(&tx, "task", None).unwrap();
+        tx.commit().unwrap();
+        assert_ne!(revision(&receiver), old);
+        assert_eq!(receiver.execute("DELETE FROM calendar_outbox WHERE revision = ?1", [old]).unwrap(), 0);
+        assert!(find(&receiver, "task").unwrap().is_none());
+    }
 }

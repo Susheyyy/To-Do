@@ -1,11 +1,11 @@
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::error::AppResult;
 use crate::services::history::{apply, Action};
 use crate::state::AppState;
 
 #[tauri::command]
-pub fn undo(state: State<'_, AppState>) -> AppResult<Option<String>> {
+pub fn undo(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
     let mut conn = state.conn()?;
     let mut history = state.history()?;
     let Some(action) = history.pop_undo() else {
@@ -18,6 +18,7 @@ pub fn undo(state: State<'_, AppState>) -> AppResult<Option<String>> {
                 label: action.label,
                 changes: inverse,
             });
+            let _ = app.emit("tasks-changed", ());
             Ok(Some(label))
         }
         Err(err) => {
@@ -28,7 +29,7 @@ pub fn undo(state: State<'_, AppState>) -> AppResult<Option<String>> {
 }
 
 #[tauri::command]
-pub fn redo(state: State<'_, AppState>) -> AppResult<Option<String>> {
+pub fn redo(app: AppHandle, state: State<'_, AppState>) -> AppResult<Option<String>> {
     let mut conn = state.conn()?;
     let mut history = state.history()?;
     let Some(action) = history.pop_redo() else {
@@ -41,6 +42,7 @@ pub fn redo(state: State<'_, AppState>) -> AppResult<Option<String>> {
                 label: action.label,
                 changes: inverse,
             });
+            let _ = app.emit("tasks-changed", ());
             Ok(Some(label))
         }
         Err(err) => {

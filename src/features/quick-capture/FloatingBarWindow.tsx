@@ -134,7 +134,7 @@ export function FloatingBarWindow() {
     e.preventDefault();
     if (!parsed.title) return;
     const projectId = parsed.projectName ? await ensureProject(parsed.projectName) : null;
-    await createTask({
+    const saved = await createTask({
       title: parsed.title,
       notes: null,
       priority: parsed.priority,
@@ -145,6 +145,7 @@ export function FloatingBarWindow() {
       tags: parsed.tags,
       recurRule: parsed.recurRule,
     });
+    if (!saved) return;
     await close();
   }
 

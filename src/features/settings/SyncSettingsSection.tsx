@@ -1,41 +1,36 @@
 import { useEffect, useState } from "react";
-import { api } from "../../lib/api";
+import { relayCredential, syncWithRelay } from "../../lib/relaySync";
+import { api, isTauri } from "../../lib/api";
 
 export function SyncSettingsSection() {
   const [syncEnabled, setSyncEnabled] = useState(false);
-  const [serverUrl, setServerUrl] = useState("https://sync.todoapp.local");
+  const [serverUrl, setServerUrl] = useState("http://127.0.0.1:4040");
+  const [token, setToken] = useState("");
   const [deviceId, setDeviceId] = useState("");
+  const [quarantinedCount, setQuarantinedCount] = useState(0);
   const [unsyncedCount, setUnsyncedCount] = useState(0);
   const [lastSyncedAt, setLastSyncedAt] = useState<string | null>(null);
-  const [pairingCode, setPairingCode] = useState("");
   const [syncStatusMsg, setSyncStatusMsg] = useState("");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    void loadStatus();
-
-
-    const interval = setInterval(() => {
-      if (syncEnabled && !loading) {
-        void triggerManualSync(true);
-      }
-    }, 30000);
-
+    void loadStatus(true);
+    const interval = setInterval(() => void loadStatus(), 5000);
     return () => clearInterval(interval);
-  }, [syncEnabled, loading]);
+  }, []);
 
-  async function loadStatus() {
+  async function loadStatus(loadFields = false) {
     try {
       const status = await api.getSyncStatus();
       setSyncEnabled(status.enabled);
-      if (status.server_url) setServerUrl(status.server_url);
+      if (loadFields && status.server_url) {
+        setServerUrl(status.server_url);
+        setToken(relayCredential(status.server_url));
+      }
       setDeviceId(status.device_id);
       setUnsyncedCount(status.unsynced_count);
+      setQuarantinedCount(status.quarantined_count);
       setLastSyncedAt(status.last_synced_at);
-
-
-      const token = btoa(JSON.stringify({ id: status.device_id, url: status.server_url ?? serverUrl }));
-      setPairingCode(token);
     } catch (e) {
       console.error("Failed to load sync status:", e);
     }
@@ -44,11 +39,10 @@ export function SyncSettingsSection() {
   async function toggleSync(on: boolean) {
     setLoading(true);
     try {
-      await api.setSyncConfig(on, serverUrl);
+      await api.setSyncConfig(on);
       setSyncEnabled(on);
       await loadStatus();
-      setSyncStatusMsg(on ? "Cloud sync enabled!" : "Sync paused.");
-      setTimeout(() => setSyncStatusMsg(""), 3500);
+      setSyncStatusMsg(on ? "Enter your relay details and choose Sync Now." : "Sync paused.");
     } catch (e) {
       setSyncStatusMsg(`Failed to update sync: ${e}`);
     } finally {
@@ -56,68 +50,17 @@ export function SyncSettingsSection() {
     }
   }
 
-  async function triggerManualSync(isBackground = false) {
-    if (!isBackground) setLoading(true);
-    if (!isBackground) setSyncStatusMsg("Connecting to sync relay...");
+  async function triggerManualSync() {
+    setLoading(true);
+    setSyncStatusMsg("Connecting to sync relay...");
     try {
-
-      let hasMore = true;
-      while (hasMore) {
-        const items = await api.getUnsyncedItems(50);
-        if (items.length === 0) {
-          hasMore = false;
-          break;
-        }
-
-        const payloadChanges = items.map((i) => ({
-          entity_type: i.entity_type,
-          entity_id: i.entity_id,
-          op_type: i.op_type,
-          payload: i.payload,
-          updated_at: i.client_timestamp,
-        }));
-
-        try {
-
-          const pushRes = await fetch(`${serverUrl}/sync/push`, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ changes: payloadChanges }),
-          });
-
-          if (pushRes.ok) {
-
-            const ids = items.map((i) => i.id);
-            const now = new Date().toISOString();
-            await api.markSynced(ids, now);
-          } else {
-
-            break;
-          }
-        } catch {
-
-          break;
-        }
-
-        if (items.length < 50) {
-          hasMore = false;
-        }
+      const url = new URL(serverUrl);
+      if (url.username || url.password || url.search || url.hash) {
+        throw new Error("Enter the relay base URL without credentials, a query, or a fragment.");
       }
-
-
-      try {
-        const res = await fetch(`${serverUrl}/sync/pull${lastSyncedAt ? `?since=${encodeURIComponent(lastSyncedAt)}` : ""}`);
-        if (res.ok) {
-          const data = await res.json();
-          if (Array.isArray(data.changes) && data.changes.length > 0) {
-            await api.applySyncChanges(data.changes);
-          }
-        }
-      } catch {}
-
+      await syncWithRelay({ url: url.href, token });
       await loadStatus();
       setSyncStatusMsg("Sync complete!");
-      setTimeout(() => setSyncStatusMsg(""), 3000);
     } catch (e) {
       setSyncStatusMsg(`Sync error: ${e}`);
     } finally {
@@ -125,13 +68,15 @@ export function SyncSettingsSection() {
     }
   }
 
+  if (!isTauri) return <p className="muted">Cross-device sync is available in the desktop app.</p>;
+
   return (
     <div className="sync-settings" style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
       <div className="settings-row">
         <div>
           <span className="settings-label" style={{ fontWeight: 600 }}>Enable Cross-Device Sync</span>
           <p className="muted" style={{ margin: "4px 0 0", fontSize: "12px" }}>
-            Sync your tasks, projects, and habit streaks across Desktop, Phones, and Tablets.
+            Use the same relay URL and token on each desktop to sync tasks, projects, and habits.
           </p>
         </div>
         <button
@@ -153,8 +98,10 @@ export function SyncSettingsSection() {
               <input
                 type="text"
                 value={serverUrl}
-                onChange={(e) => setServerUrl(e.target.value)}
-                onBlur={() => void api.setSyncConfig(syncEnabled, serverUrl)}
+                onChange={(e) => {
+                  setServerUrl(e.target.value);
+                  setToken("");
+                }}
                 style={{
                   flex: 1,
                   padding: "8px 12px",
@@ -169,13 +116,18 @@ export function SyncSettingsSection() {
               <button
                 type="button"
                 className="chip primary"
-                onClick={() => void triggerManualSync(false)}
+                onClick={() => void triggerManualSync()}
                 disabled={loading}
               >
                 Sync Now
               </button>
             </div>
           </div>
+
+          <label className="settings-row">
+            <span className="settings-label">Relay access token</span>
+            <input type="password" value={token} autoComplete="off" onChange={(e) => setToken(e.target.value)} />
+          </label>
 
           <div
             style={{
@@ -190,28 +142,17 @@ export function SyncSettingsSection() {
           >
             <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
               <span style={{ fontSize: "12px", color: "var(--color-text-secondary, #8e8e93)" }}>Device: {deviceId.slice(0, 8)}...</span>
-              <span style={{ fontSize: "11px", color: "var(--color-accent, #6366f1)" }}>Scan / Paste on Mobile / Tablet</span>
             </div>
-            <code
-              style={{
-                fontSize: "11px",
-                padding: "8px",
-                background: "rgba(0,0,0,0.3)",
-                borderRadius: "6px",
-                overflowX: "auto",
-                fontFamily: "monospace",
-                color: "#93c5fd",
-                userSelect: "all",
-              }}
-            >
-              {pairingCode}
-            </code>
             <div style={{ display: "flex", justifyContent: "space-between", fontSize: "12px", color: "var(--color-text-secondary, #8e8e93)" }}>
               <span>Pending changes: {unsyncedCount}</span>
               <span>Last synced: {lastSyncedAt ? new Date(lastSyncedAt).toLocaleTimeString() : "Never"}</span>
             </div>
           </div>
         </>
+      )}
+
+      {quarantinedCount > 0 && (
+        <p role="status" className="error-text">Could not apply {quarantinedCount} downloaded record(s). Other changes can still sync.</p>
       )}
 
       {syncStatusMsg && (

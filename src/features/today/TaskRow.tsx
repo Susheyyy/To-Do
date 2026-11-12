@@ -29,11 +29,13 @@ export function TaskRow({
   isFocused,
   isSelected,
   onSelect,
+  showSelection = false,
 }: {
   task: Task;
   isFocused?: boolean;
   isSelected?: boolean;
-  onSelect?: (e: React.MouseEvent) => void;
+  onSelect?: () => void;
+  showSelection?: boolean;
 }) {
   const clock = useSettings((s) => s.clock);
   const soundEnabled = useSettings((s) => s.soundEnabled);
@@ -85,11 +87,20 @@ export function TaskRow({
       role="listitem"
       onClick={(e) => {
         if (e.shiftKey || e.ctrlKey || e.metaKey) {
-          onSelect?.(e);
+          onSelect?.();
         }
       }}
     >
       <div className="task-main">
+        {showSelection && (
+          <input
+            type="checkbox"
+            checked={Boolean(isSelected)}
+            aria-label={`Select ${task.title}`}
+            onClick={(e) => e.stopPropagation()}
+            onChange={onSelect}
+          />
+        )}
         <button
           className={`check-btn priority-${task.priority} ${done ? "checked" : ""}`}
           onClick={complete}

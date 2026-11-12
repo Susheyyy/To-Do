@@ -1,6 +1,6 @@
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Subtask {
     pub id: String,
@@ -23,6 +23,7 @@ pub struct Task {
     pub tags: Vec<String>,
     pub subtasks: Vec<Subtask>,
     pub recur_rule: Option<String>,
+    pub series_id: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }
@@ -42,7 +43,7 @@ pub struct TaskInput {
     pub recur_rule: Option<String>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Section {
     pub id: String,

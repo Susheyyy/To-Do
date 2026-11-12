@@ -1,3 +1,6 @@
+import { useEffect } from "react";
+import { startCalendarDelivery } from "./lib/googleCalendar";
+import { startRelaySync } from "./lib/relaySync";
 import "./styles/globals.css";
 import { ThemeProvider } from "./app/ThemeProvider";
 import { getWindowType } from "./app/windows";
@@ -8,6 +11,15 @@ import { ErrorBoundary } from "./components/ErrorBoundary";
 
 export default function App() {
   const winType = getWindowType();
+  useEffect(() => {
+    if (winType !== "main") return;
+    const stopRelay = startRelaySync();
+    const stopCalendar = startCalendarDelivery();
+    return () => {
+      stopRelay?.();
+      stopCalendar?.();
+    };
+  }, [winType]);
 
   return (
     <ErrorBoundary>

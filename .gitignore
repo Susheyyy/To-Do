@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Local relay data
+/sync-server/sync_store.json
+/sync-server/sync_store.json.sqlite*

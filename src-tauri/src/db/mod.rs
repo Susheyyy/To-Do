@@ -17,6 +17,9 @@ const MIGRATIONS: &[(&str, &str)] = &[
     ("004_perf_indexes", include_str!("migrations/004_perf_indexes.sql")),
     ("005_fts", include_str!("migrations/005_fts.sql")),
     ("006_sync_engine", include_str!("migrations/006_sync_engine.sql")),
+    ("007_sync_timestamps", include_str!("migrations/007_sync_timestamps.sql")),
+    ("008_task_integrations", include_str!("migrations/008_task_integrations.sql")),
+    ("009_sync_quarantine", include_str!("migrations/009_sync_quarantine.sql")),
 ];
 
 
@@ -32,34 +35,63 @@ pub fn open(dir: &Path) -> AppResult<Connection> {
 
 
 fn open_with_recovery(dir: &Path, db_path: &Path) -> AppResult<Connection> {
-    match try_open(db_path) {
-        Ok(conn) => Ok(conn),
-        Err(first_err) => {
-            
-            eprintln!("[db] primary open failed ({first_err}), attempting backup recovery…");
-            let backups_dir = dir.join("backups");
-            if let Ok(entries) = std::fs::read_dir(&backups_dir) {
-                let mut candidates: Vec<PathBuf> = entries
-                    .flatten()
-                    .map(|e| e.path())
-                    .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("db"))
-                    .collect();
-                candidates.sort_by(|a, b| b.cmp(a)); 
-                for candidate in candidates {
-                    eprintln!("[db] trying backup {:?}", candidate);
-                    if try_open(&candidate).is_ok() {
-                        if let Err(e) = std::fs::copy(&candidate, db_path) {
-                            eprintln!("[db] could not restore backup file to primary path: {e}");
-                        } else if let Ok(restored_conn) = try_open(db_path) {
-                            eprintln!("[db] successfully restored primary db from backup {:?}", candidate);
-                            return Ok(restored_conn);
-                        }
-                    }
+    let original_error = match try_open(db_path) {
+        Ok(conn) => return Ok(conn),
+        Err(err @ AppError::Db(rusqlite::Error::SqliteFailure(code, _)))
+            if matches!(code.code, rusqlite::ErrorCode::DatabaseCorrupt | rusqlite::ErrorCode::NotADatabase) => err,
+        Err(err) => return Err(err),
+    };
+    let Ok(entries) = std::fs::read_dir(dir.join("backups")) else {
+        return Err(original_error);
+    };
+    let mut candidates: Vec<_> = entries.flatten().map(|entry| entry.path())
+        .filter(|path| path.extension().is_some_and(|ext| ext == "db")).collect();
+    candidates.sort_by(|left, right| right.cmp(left));
+
+    for candidate in candidates {
+        let recovery_dir = dir.join(format!("recovery-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir(&recovery_dir)?;
+        let staged = recovery_dir.join("replacement.db");
+        let prepared = (|| -> AppResult<()> {
+            let source = Connection::open_with_flags(&candidate, rusqlite::OpenFlags::SQLITE_OPEN_READ_ONLY)?;
+            source.execute("VACUUM INTO ?1", [staged.to_string_lossy().as_ref()])?;
+            let conn = try_open(&staged)?;
+            conn.execute_batch("PRAGMA journal_mode = DELETE;")?;
+            Ok(())
+        })();
+        if let Err(err) = prepared {
+            eprintln!("[db] rejected backup {candidate:?}: {err}");
+            let _ = std::fs::remove_file(&staged);
+            let _ = std::fs::remove_dir(&recovery_dir);
+            continue;
+        }
+
+        let mut preserved = Vec::new();
+        let install = (|| -> AppResult<()> {
+            let archived_primary = recovery_dir.join("todo.db");
+            std::fs::copy(db_path, &archived_primary)?;
+            std::fs::OpenOptions::new().write(true).open(&archived_primary)?.sync_all()?;
+            for name in ["todo.db-wal", "todo.db-shm", "todo.db-journal"] {
+                let source = dir.join(name);
+                if source.try_exists()? {
+                    let target = recovery_dir.join(name);
+                    std::fs::rename(&source, &target)?;
+                    preserved.push((source, target));
                 }
             }
-            Err(first_err)
+            std::fs::rename(&staged, db_path)?;
+            Ok(())
+        })();
+        if let Err(err) = install {
+            for (source, target) in preserved.into_iter().rev() {
+                std::fs::rename(target, source)?;
+            }
+            return Err(err);
         }
+        eprintln!("[db] recovered from {candidate:?}; original files preserved in {recovery_dir:?}");
+        return try_open(db_path);
     }
+    Err(original_error)
 }
 
 fn try_open(path: &Path) -> AppResult<Connection> {
@@ -77,7 +109,7 @@ fn try_open(path: &Path) -> AppResult<Connection> {
             Some(format!("integrity_check: {ok}")),
         )));
     }
-    migrate(&conn)?;
+    migrate(&conn).map_err(|err| AppError::Invalid(format!("Database migration failed: {err}")))?;
     conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     Ok(conn)
 }
@@ -99,10 +131,7 @@ pub fn create_auto_backup(dir: &Path) -> AppResult<PathBuf> {
     let ts = chrono::Utc::now().format("%Y%m%d_%H%M%S");
     let filename = format!("todo_backup_{ts}.db");
     let target = backups_dir.join(&filename);
-    src.execute(
-        &format!("VACUUM INTO '{}'", target.to_string_lossy().replace('\\', "/")),
-        [],
-    )?;
+    src.execute("VACUUM INTO ?1", [target.to_string_lossy().as_ref()])?;
 
     
     prune_backups(&backups_dir);
@@ -154,4 +183,46 @@ fn migrate(conn: &Connection) -> AppResult<()> {
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;
     }
     Ok(())
+}
+#[cfg(test)]
+pub(crate) fn test_connection() -> Connection {
+    let conn = Connection::open_in_memory().unwrap();
+    migrate(&conn).unwrap();
+    conn
+}
+
+#[cfg(test)]
+mod recovery_tests {
+    use super::*;
+
+    #[test]
+    fn only_corrupt_primary_is_replaced_and_its_bytes_are_preserved() {
+        let dir = std::env::temp_dir().join(format!("todo-recovery-test-{}", uuid::Uuid::new_v4()));
+        let primary = dir.join("todo.db");
+        let conn = open(&dir).unwrap();
+        create_auto_backup(&dir).unwrap();
+        conn.execute_batch("DELETE FROM schema_migrations WHERE name = '001_init';").unwrap();
+        drop(conn);
+        assert!(open(&dir).is_err());
+        let check = Connection::open(&primary).unwrap();
+        assert_eq!(check.query_row(
+            "SELECT COUNT(*) FROM schema_migrations WHERE name = '001_init'", [], |row| row.get::<_, i64>(0)
+        ).unwrap(), 0);
+        drop(check);
+        let corrupt = b"invalid SQLite file for recovery testing";
+        std::fs::write(&primary, corrupt).unwrap();
+        drop(open(&dir).unwrap());
+        let recovery = std::fs::read_dir(&dir).unwrap().flatten()
+            .find(|entry| entry.file_name().to_string_lossy().starts_with("recovery-")).unwrap().path();
+        assert_eq!(std::fs::read(recovery.join("todo.db")).unwrap(), corrupt);
+        for folder in [recovery, dir.join("backups"), dir] {
+            for entry in std::fs::read_dir(&folder).unwrap() {
+                let entry = entry.unwrap();
+                if entry.file_type().unwrap().is_file() {
+                    std::fs::remove_file(entry.path()).unwrap();
+                }
+            }
+            std::fs::remove_dir(folder).unwrap();
+        }
+    }
 }

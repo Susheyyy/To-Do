@@ -12,11 +12,12 @@ pub fn get_sync_status(state: State<'_, AppState>) -> AppResult<SyncStatus> {
 #[tauri::command]
 pub fn set_sync_config(
     state: State<'_, AppState>,
-    enabled: bool,
+    enabled: Option<bool>,
     server_url: Option<String>,
+    group_id: Option<String>,
 ) -> AppResult<()> {
-    let conn = state.conn()?;
-    sync_repo::set_sync_config(&conn, enabled, server_url.as_deref())
+    let mut conn = state.conn()?;
+    sync_repo::set_sync_config(&mut conn, enabled, server_url.as_deref(), group_id.as_deref())
 }
 
 #[tauri::command]
@@ -36,11 +37,13 @@ pub fn apply_sync_changes(
     app: AppHandle,
     state: State<'_, AppState>,
     changes: Vec<IncomingChange>,
+    cursor: String,
 ) -> AppResult<usize> {
     let mut conn = state.conn()?;
-    let count = sync_repo::apply_incoming_changes(&mut conn, changes)?;
+    let count = sync_repo::apply_incoming_changes(&mut conn, changes, &cursor)?;
     if count > 0 {
         let _ = app.emit("tasks-changed", ());
+        let _ = app.emit("habits-changed", ());
     }
     Ok(count)
 }

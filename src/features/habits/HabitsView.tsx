@@ -1,3 +1,4 @@
+import { listen } from "@tauri-apps/api/event";
 import { useEffect, useMemo, useState } from "react";
 import { format, parseISO, subDays } from "date-fns";
 import { Icon } from "../../components/Icon";
@@ -63,11 +64,14 @@ export function HabitsView() {
   const today = todayIso();
 
   useEffect(() => {
-    void load();
-    const start = grid[0];
-    const end = grid[grid.length - 1];
-    void loadLogs(start, end);
-  }, []);
+    const refresh = () => {
+      const dates = buildGrid(28);
+      void Promise.all([load(), loadLogs(dates[0], dates[dates.length - 1])]).catch(console.error);
+    };
+    refresh();
+    const listener = listen("habits-changed", refresh).catch(() => undefined);
+    return () => { void listener.then((unlisten) => unlisten?.()); };
+  }, [load, loadLogs]);
 
   
   const logSet = useMemo(() => {

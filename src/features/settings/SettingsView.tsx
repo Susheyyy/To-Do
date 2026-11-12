@@ -2,13 +2,15 @@ import { useEffect, useState } from "react";
 import { enable, disable, isEnabled } from "@tauri-apps/plugin-autostart";
 
 import { ThemePicker } from "../../components/ThemePicker";
-import { api } from "../../lib/api";
+import { api, isTauri } from "../../lib/api";
 import { useSettings } from "../../stores/settings.store";
 import { SyncSettingsSection } from "./SyncSettingsSection";
 import {
   disconnectGCal,
   getGCalConfig,
   initGoogleAuth,
+  deliverCalendarChanges,
+  useCalendarSyncStatus,
   saveGCalClientId,
 } from "../../lib/googleCalendar";
 
@@ -34,6 +36,7 @@ export function SettingsView() {
   const setTrayClickAction = useSettings((s) => s.setTrayClickAction);
   const [autostart, setAutostart] = useState(false);
   const [backupMsg, setBackupMsg] = useState("");
+  const calendarError = useCalendarSyncStatus((state) => state.error);
   const [gcalConfig, setGcalConfig] = useState(getGCalConfig());
   const [gcalClientIdInput, setGcalClientIdInput] = useState(gcalConfig.clientId);
   const [gcalLoading, setGcalLoading] = useState(false);
@@ -57,6 +60,7 @@ export function SettingsView() {
       setGcalLoading(true);
       saveGCalClientId(gcalClientIdInput);
       await initGoogleAuth(gcalClientIdInput);
+      void deliverCalendarChanges();
       setGcalConfig(getGCalConfig());
       setBackupMsg("Google Calendar connected successfully!");
       setTimeout(() => setBackupMsg(""), 3500);
@@ -288,6 +292,7 @@ export function SettingsView() {
 
       <section className="card settings-group">
         <h2 className="group-title">Google Calendar Real-Time Sync</h2>
+        {isTauri ? (
         <div className="settings-row" style={{ alignItems: "flex-start", flexDirection: "column", gap: 10 }}>
           <span className="settings-label">
             Connect your Google Calendar directly. Tasks created with a due date will automatically sync as events.
@@ -323,6 +328,9 @@ export function SettingsView() {
               </button>
             )}
           </div>
+          {gcalConfig.isConnected && calendarError && (
+            <p role="status" className="error-text">Calendar changes are queued for retry. {calendarError}</p>
+          )}
           {!gcalConfig.isConnected && (
             <p style={{ margin: "2px 0 0", fontSize: 12, color: "var(--color-text-secondary, #8f8fa0)" }}>
               Need a Client ID? See the step-by-step instructions in the project <code>README.md</code> or the Google Cloud Console.
@@ -334,6 +342,7 @@ export function SettingsView() {
             </p>
           )}
         </div>
+        ) : <p className="muted">Google Calendar sync is available in the desktop app.</p>}
       </section>
 
       <section className="card settings-group">

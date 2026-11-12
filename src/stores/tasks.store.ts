@@ -2,9 +2,8 @@ import { addDays, format, startOfDay } from "date-fns";
 import { listen } from "@tauri-apps/api/event";
 import { create } from "zustand";
 
-import { api } from "../lib/api";
+import { api, type BatchTaskAction } from "../lib/api";
 import { nextProjectSlot } from "../lib/projectColors";
-import { syncTaskToGoogle } from "../lib/googleCalendar";
 import type { Priority, Project, Task, TaskInput } from "../types/models";
 
 export const todayIso = () => format(new Date(), "yyyy-MM-dd");
@@ -25,6 +24,7 @@ export function toInput(task: Task, patch: Partial<TaskInput> = {}): TaskInput {
 }
 
 interface TasksState {
+  localDay: string;
   open: Task[];
   today: Task[];
   overdue: Task[];
@@ -33,7 +33,7 @@ interface TasksState {
   error: string | null;
   version: number;
   load: () => Promise<void>;
-  createTask: (input: TaskInput) => Promise<void>;
+  createTask: (input: TaskInput) => Promise<boolean>;
   updateTask: (id: string, input: TaskInput) => Promise<void>;
   toggleTask: (task: Task) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
@@ -49,28 +49,35 @@ interface TasksState {
   renameTag: (oldTag: string, newTag: string) => Promise<void>;
   deleteTag: (tag: string) => Promise<void>;
   rescheduleOverdue: () => Promise<void>;
-  batchToggle: (ids: string[], done: boolean) => Promise<void>;
-  batchDelete: (ids: string[]) => Promise<void>;
-  batchReschedule: (ids: string[], dueDate: string | null) => Promise<void>;
-  batchSetPriority: (ids: string[], priority: Priority) => Promise<void>;
-  batchMoveProject: (ids: string[], projectId: string | null) => Promise<void>;
+  batchToggle: (ids: string[], done: boolean) => Promise<boolean>;
+  batchDelete: (ids: string[]) => Promise<boolean>;
+  batchReschedule: (ids: string[], dueDate: string | null) => Promise<boolean>;
+  batchSetPriority: (ids: string[], priority: Priority) => Promise<boolean>;
+  batchMoveProject: (ids: string[], projectId: string | null) => Promise<boolean>;
   undo: () => Promise<void>;
   redo: () => Promise<void>;
 }
 
 export const useTasks = create<TasksState>((set, get) => {
-  const guard = async (action: () => Promise<unknown>) => {
+  let loadRequest = 0;
+  const mutate = async (action: () => Promise<unknown>) => {
     try {
       await action();
     } catch (err) {
       set({ error: String(err) });
-      return;
+      return false;
     }
     set({ error: null });
-    await get().load();
+    await get().load().catch((err) => set({ error: String(err) }));
+    return true;
   };
 
+  const guard = async (action: () => Promise<unknown>) => { await mutate(action); };
+
+  const batch = (ids: string[], action: BatchTaskAction) => mutate(() => api.batchTasks(ids, action));
+
   return {
+    localDay: todayIso(),
     open: [],
     today: [],
     overdue: [],
@@ -79,9 +86,22 @@ export const useTasks = create<TasksState>((set, get) => {
     error: null,
     version: 0,
     load: async () => {
-      const day = todayIso();
-      const dayStart = startOfDay(new Date()).toISOString();
-      const dayEnd = startOfDay(addDays(new Date(), 1)).toISOString();
+      const request = ++loadRequest;
+      const now = new Date();
+      const day = format(now, "yyyy-MM-dd");
+      const dayStart = startOfDay(now).toISOString();
+      const dayEnd = startOfDay(addDays(now, 1)).toISOString();
+      if (day !== get().localDay) {
+        set((state) => ({
+          localDay: day,
+          today: state.open.filter((task) => task.dueDate === day),
+          overdue: state.open.filter((task) => task.dueDate !== null && task.dueDate < day),
+          completedToday: state.completedToday.filter((task) =>
+            task.completedAt !== null && Date.parse(task.completedAt) >= Date.parse(dayStart)
+              && Date.parse(task.completedAt) < Date.parse(dayEnd)
+          ),
+        }));
+      }
       const [open, today, overdue, completedToday, projects] = await Promise.all([
         api.listOpenTasks(),
         api.listToday(day),
@@ -89,30 +109,14 @@ export const useTasks = create<TasksState>((set, get) => {
         api.listCompletedBetween(dayStart, dayEnd),
         api.listProjects(),
       ]);
+      if (request !== loadRequest) return;
+      if (day !== todayIso()) {
+        await get().load();
+        return;
+      }
       set({ open, today, overdue, completedToday, projects, version: get().version + 1 });
     },
-    createTask: (input) =>
-      guard(async () => {
-        const id = input.id || "task_" + Math.random().toString(36).slice(2, 10) + Date.now().toString(36);
-        const taskPayload = { ...input, id };
-        await api.createTask(taskPayload);
-        void syncTaskToGoogle({
-          id,
-          title: input.title,
-          notes: input.notes ?? null,
-          priority: input.priority,
-          dueDate: input.dueDate ?? null,
-          dueTime: input.dueTime ?? null,
-          projectId: input.projectId ?? null,
-          sectionId: input.sectionId ?? null,
-          tags: input.tags ?? [],
-          recurRule: input.recurRule ?? null,
-          completedAt: null,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
-          subtasks: [],
-        });
-      }),
+    createTask: (input) => mutate(() => api.createTask(input)),
     updateTask: (id, input) => guard(() => api.updateTask(id, input)),
     toggleTask: async (task) => {
       const willBeDone = task.completedAt === null;
@@ -199,52 +203,12 @@ export const useTasks = create<TasksState>((set, get) => {
           await api.updateTask(task.id, toInput(task, { tags: updatedTags }));
         }
       }),
-    rescheduleOverdue: () =>
-      guard(async () => {
-        await api.rescheduleOverdue(todayIso());
-      }),
-    batchToggle: (ids, done) =>
-      guard(async () => {
-        for (const id of ids) {
-          await api.setTaskCompleted(id, done);
-        }
-      }),
-    batchDelete: (ids) =>
-      guard(async () => {
-        for (const id of ids) {
-          await api.deleteTask(id);
-        }
-      }),
-    batchReschedule: (ids, dueDate) =>
-      guard(async () => {
-        const allTasks = [...get().open, ...get().today, ...get().overdue];
-        for (const id of ids) {
-          const t = allTasks.find((item) => item.id === id);
-          if (t) {
-            await api.updateTask(id, toInput(t, { dueDate }));
-          }
-        }
-      }),
-    batchSetPriority: (ids, priority) =>
-      guard(async () => {
-        const allTasks = [...get().open, ...get().today, ...get().overdue];
-        for (const id of ids) {
-          const t = allTasks.find((item) => item.id === id);
-          if (t) {
-            await api.updateTask(id, toInput(t, { priority }));
-          }
-        }
-      }),
-    batchMoveProject: (ids, projectId) =>
-      guard(async () => {
-        const allTasks = [...get().open, ...get().today, ...get().overdue];
-        for (const id of ids) {
-          const t = allTasks.find((item) => item.id === id);
-          if (t) {
-            await api.updateTask(id, toInput(t, { projectId, sectionId: null }));
-          }
-        }
-      }),
+    rescheduleOverdue: () => guard(() => api.rescheduleOverdue(todayIso())),
+    batchToggle: (ids, done) => batch(ids, { kind: "complete", done }),
+    batchDelete: (ids) => batch(ids, { kind: "delete" }),
+    batchReschedule: (ids, dueDate) => batch(ids, { kind: "reschedule", dueDate }),
+    batchSetPriority: (ids, priority) => batch(ids, { kind: "setPriority", priority }),
+    batchMoveProject: (ids, projectId) => batch(ids, { kind: "move", projectId }),
     undo: () => guard(() => api.undo()),
     redo: () => guard(() => api.redo()),
   };

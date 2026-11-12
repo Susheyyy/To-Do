@@ -1,4 +1,4 @@
-use tauri::State;
+use tauri::{AppHandle, Emitter, State};
 
 use crate::db::projects_repo;
 use crate::error::AppResult;
@@ -11,12 +11,13 @@ pub fn create_project(state: State<'_, AppState>, name: String, color: Option<St
     let conn = state.conn()?;
     let project = projects_repo::create(&conn, &name, color)?;
     state.history()?.record(
+        &conn,
         "Create project",
         vec![Change::Project {
             id: project.id.clone(),
             before: None,
         }],
-    );
+    )?;
     Ok(project)
 }
 
@@ -31,7 +32,7 @@ pub fn delete_project(state: State<'_, AppState>, id: String) -> AppResult<()> {
     let conn = state.conn()?;
     let before = capture_project(&conn, &id)?;
     projects_repo::soft_delete(&conn, &id)?;
-    state.history()?.record("Delete project", vec![before]);
+    state.history()?.record(&conn, "Delete project", vec![before])?;
     Ok(())
 }
 
@@ -40,7 +41,7 @@ pub fn create_section(state: State<'_, AppState>, project_id: String, name: Stri
     let conn = state.conn()?;
     let before = capture_project(&conn, &project_id)?;
     let section = projects_repo::create_section(&conn, &project_id, &name)?;
-    state.history()?.record("Add section", vec![before]);
+    state.history()?.record(&conn, "Add section", vec![before])?;
     Ok(section)
 }
 
@@ -58,7 +59,9 @@ pub fn rename_section(state: State<'_, AppState>, id: String, name: String) -> A
 }
 
 #[tauri::command]
-pub fn delete_section(state: State<'_, AppState>, id: String) -> AppResult<()> {
-    let conn = state.conn()?;
-    projects_repo::delete_section(&conn, &id)
+pub fn delete_section(app: AppHandle, state: State<'_, AppState>, id: String) -> AppResult<()> {
+    let mut conn = state.conn()?;
+    projects_repo::delete_section(&mut conn, &id)?;
+    let _ = app.emit("tasks-changed", ());
+    Ok(())
 }
